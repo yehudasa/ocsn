@@ -14,20 +14,37 @@ etcd_client = EtcdClient()
 def index():
     return 'index!'
 
-#adding variables
-@app.route('/user/<username>', methods = ['GET', 'POST', 'DELETE'])
+@app.route('/user/<tenant>/<username>', methods = ['GET', 'POST', 'DELETE'])
 def user_handler(username):
     #GET
     if request.method == 'GET':
-        u = OCSNUser(id = username).load()
+        u = OCSNUser(tenant = tenant, id = username).load()
         return u.encode_json()
 
     # POST
     data = request.get_data()
-    u = OCSNUser(id = username)
+    u = OCSNUser(tenant = tenant, id = username)
     u = u.decode_json(data)
     if u:
+        u.tenant = tenant # forcce provided tenant
         u.id = username # force provided id
+        u.store()
+
+    return ''
+
+@app.route('/tenant/<tenant>', methods = ['GET', 'POST', 'DELETE'])
+def user_handler(tenant):
+    #GET
+    if request.method == 'GET':
+        u = OCSNTenant(id = tenant).load()
+        return u.encode_json()
+
+    # POST
+    data = request.get_data()
+    u = OCSNTenant(id = tenant)
+    u = u.decode_json(data)
+    if u:
+        u.id = tenant # force provided id
         u.store()
 
     return ''

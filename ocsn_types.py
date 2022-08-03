@@ -88,13 +88,8 @@ class S3Credentials(Credentials):
         self.secret = d.get('secret')
         return self
 
-class OCSNDataProvider(OCSNEntity):
-
-    def __init__(self):
-        self.id = None
-        self.type = None
-        self.creds = {}
-        self.status = None
+    def get_key(self):
+        return 'creds/s3/' + self.id
 
 class OCSNDataPolicy(OCSNEntity):
 
@@ -106,8 +101,9 @@ class OCSNDataPolicy(OCSNEntity):
 
 class OCSNUser(OCSNEntity):
 
-    def __init__(self, id = None, creds = None, buckets = None, data_policy = None):
+    def __init__(self, id = None, name = None, creds = None, buckets = None, data_policy = None):
         self.id = id
+        self.name = name
         self.creds = creds
         self.buckets = buckets
         self.data_policy = data_policy
@@ -117,51 +113,165 @@ class OCSNUser(OCSNEntity):
 
     def decode(self, d):
         self.id = d.get('id')
+        self.name = d.get('name')
         self.buckets = decode_list(d.get('buckets'), OCSNBucket)
         self.data_policy = OCSNDataPolicy().decode(d.get('data_policy'))
         return self
 
     def encode(self):
         return {'id': self.id,
+                'name': self.name,
                 'creds': self.creds,
                 'buckets': self.buckets,
                 'data_policy': self.data_policy,
                 }
 
 
-class OCSNBucketInstanceMapping(OCSNEntity):
+class OCSNBucketInstance(OCSNEntity):
     def __init__(self):
-        self.data_provider = None
+        self.id = None
+        self.data_group = None
         self.bucket = None
+        self.obj_prefix = ''
         self.creds_id = None
-        self.data_policy = None
 
     def encode(self):
         return {'id': self.id,
+                'data_group': self.data_group,
                 'bucket': self.bucket,
-                'creds_id': self.creds_id,
-                'data_policy': self.data_policy}
+                'obj_prefix': self.obj_prefix,
+                'creds_id': self.creds_id}
 
     def decode(self, d):
         self.id = d.get('id')
+        self.data_group = d.get('data_group')
         self.bucket = d.get('bucket')
+        self.obj_prefix = d.get('obj_prefix')
         self.creds_id = d.get('creds_id')
-        self.data_policy = OCSNDataPolicy().decode(d.get('data_policy'))
         return self
 
 
-class OCSNBucket(OCSNEntity):
+class OCSNBucketInstanceMapping(OCSNEntity):
+    def __init__(self):
+        self.bis = None # bucket instances
+
+    def encode(self):
+        return {'id': self.id,
+                'bis': self.bis }
+
+    def decode(self, d):
+        self.id = d.get('id')
+        self.bis = decode_list(d.get('bis'), OCSNBucketInstance)
+        # self.data_policy = OCSNDataPolicy().decode(d.get('data_policy'))
+        return self
+
+
+class OCSNVBucket(OCSNEntity):
 
     def __init__(self, id = None, mappings = None):
         self.id = id
+        self.name = None
         self.mappings = mappings
     
+    def get_key(self):
+        return 'b/' + self.id
+
     def encode(self):
         return {'id': self.id,
+                'name': self.name,
                 'mappings': self.mappings}
 
     def decode(self, d):
         self.id = d.get('id')
+        self.user = d.get('name')
         self.mappings = OCSNBucketInstanceMapping().decode(d.get('mappings'))
         return self
+
+class OCSNTenant(OCSNEntity):
+
+    def __init__(self, id = None, name = None, users = None, buckets = None):
+        self.id = id
+        self.name = name
+        self.creds = creds
+        self.users = users
+        self.vbuckets = vbuckets
+
+    def get_key(self):
+        return 'tenant/' + self.id
+
+    def decode(self, d):
+        self.id = d.get('id')
+        self.name = d.get('name')
+        self.users = decode_list(d.get('users'), OCSNUser)
+        self.vbuckets = decode_list(d.get('vbuckets'), OCSNVBucket)
+        return self
+
+    def encode(self):
+        return {'id': self.id,
+                'name': self.name,
+                'users': self.users,
+                'vbuckets': self.vbuckets,
+                }
+
+
+class OCSNService:
+    def __init__(self, id = None, name = None, region = None, endpoint = None):
+        self.id = id
+        self.name = name
+        self.region = region
+        self.endpoint = endpoint
+
+    def get_key(self):
+        return 'svc/' + self.id
+
+    def decode(self, d):
+        self.id = d.get('id')
+        self.name = d.get('name')
+        self.region = d.get('region')
+        self.endpoint = d.get('endpoint')
+        return self
+
+    def encode(self):
+        return {'id': self.id,
+                'name': self.name,
+                'region': self.region,
+                'endpoint': self.endpoint,
+                }
+
+
+class OCSNServiceInstance(OCSNEntity):
+    def __init__(self, id = None, name = None, svc_id = None, buckets = None, creds = None):
+        self.id = id
+        self.name = name
+        self.svc_id = svc_id
+        self.buckets = buckets
+        self.creds = creds
+
+    def get_key(self):
+        return 'dg/' + self.id
+
+    def decode(self, d):
+        self.id = d.get('id')
+        self.name = d.get('name')
+        self.svc = d.get('svc')
+        self.buckets = d.get('buckets')
+        self.creds = d.get('creds')
+        return self
+
+    def encode(self):
+        return {'id': self.id,
+                'name': self.name,
+                'svc': self.svc,
+                'buckets': self.buckets,
+                'creds': self.creds,
+                }
+
+
+class OCSNDataFlowPolicy:
+    def __init__(self, id = None):
+        # TODO
+        pass
+
+
+
 
