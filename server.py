@@ -14,37 +14,54 @@ etcd_client = EtcdClient()
 def index():
     return 'index!'
 
-@app.route('/user/<tenant>/<username>', methods = ['GET', 'POST', 'DELETE'])
+@app.route('/user/<username>', methods = ['GET', 'POST', 'DELETE'])
 def user_handler(username):
     #GET
     if request.method == 'GET':
-        u = OCSNUser(tenant = tenant, id = username).load()
+        u = OCSNUser(id = username).load()
         return u.encode_json()
 
     # POST
     data = request.get_data()
-    u = OCSNUser(tenant = tenant, id = username)
+    u = OCSNUser(id = username)
     u = u.decode_json(data)
     if u:
-        u.tenant = tenant # forcce provided tenant
         u.id = username # force provided id
         u.store()
 
     return ''
 
-@app.route('/tenant/<tenant>', methods = ['GET', 'POST', 'DELETE'])
-def user_handler(tenant):
+@app.route('/svc/<service>', methods = ['GET', 'POST', 'DELETE'])
+def svc_handler(service):
     #GET
     if request.method == 'GET':
-        u = OCSNTenant(id = tenant).load()
-        return u.encode_json()
+        svc = OCSNService(id = service).load()
+        return svc.encode_json()
 
     # POST
     data = request.get_data()
-    u = OCSNTenant(id = tenant)
-    u = u.decode_json(data)
-    if u:
-        u.id = tenant # force provided id
-        u.store()
+    svc = OCSNService(id = service)
+    svc = svc.decode_json(data)
+    if svc:
+        svc.id = service # force provided id
+        svc.store()
 
     return ''
+
+@app.route('/service_instance/<id>', methods = ['GET', 'POST', 'DELETE'])
+def svci_handler(id):
+    #GET
+    if request.method == 'GET':
+        svci = OCSNServiceInstance(id = id).load()
+        return svci.encode_json()
+
+    # POST
+    data = request.get_data()
+    svci = OCSNServiceInstance(id = id)
+    svci = svci.decode_json(data)
+    if svci:
+        svci.id = id # force provided id
+        svci.store()
+
+    return ''
+

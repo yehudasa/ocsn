@@ -3,10 +3,10 @@ from abc import abstractmethod
 from flask import json
 from flask.json import JSONEncoder
 
-from .etcd_client import EtcdClient
+from .redis_client import RedisClient
 
 
-ec = EtcdClient()
+redis_client = RedisClient()
 
 
 
@@ -50,12 +50,12 @@ class OCSNEntity(json.JSONEncoder):
         return json.dumps(self.encode())
 
     def load(self):
-        k, v = ec.get(self.get_key())
+        v = redis_client.get(self.get_key())
         return self.decode_json(v)
 
     def store(self):
         k = self.get_key()
-        ec.put(k, self.encode_json())
+        redis_client.put(k, self.encode_json())
 
 
 
@@ -70,7 +70,7 @@ class Credentials(OCSNEntity):
     pass
 
 
-class S3Credentials(Credentials):
+class OCSNS3Credes(Credentials):
 
     def __init__(self):
         self.id = None
@@ -101,11 +101,11 @@ class OCSNDataPolicy(OCSNEntity):
 
 class OCSNUser(OCSNEntity):
 
-    def __init__(self, id = None, name = None, creds = None, buckets = None, data_policy = None):
+    def __init__(self, id = None, name = None, creds = None, vbuckets = None, data_policy = None):
         self.id = id
         self.name = name
         self.creds = creds
-        self.buckets = buckets
+        self.vbuckets = vbuckets
         self.data_policy = data_policy
 
     def get_key(self):
@@ -114,7 +114,7 @@ class OCSNUser(OCSNEntity):
     def decode(self, d):
         self.id = d.get('id')
         self.name = d.get('name')
-        self.buckets = decode_list(d.get('buckets'), OCSNBucket)
+        self.vbuckets = decode_list(d.get('vbuckets'), OCSNVBucket)
         self.data_policy = OCSNDataPolicy().decode(d.get('data_policy'))
         return self
 
@@ -122,7 +122,7 @@ class OCSNUser(OCSNEntity):
         return {'id': self.id,
                 'name': self.name,
                 'creds': self.creds,
-                'buckets': self.buckets,
+                'vbuckets': self.vbuckets,
                 'data_policy': self.data_policy,
                 }
 
@@ -130,21 +130,21 @@ class OCSNUser(OCSNEntity):
 class OCSNBucketInstance(OCSNEntity):
     def __init__(self):
         self.id = None
-        self.data_group = None
+        self.svc_instance = None
         self.bucket = None
         self.obj_prefix = ''
         self.creds_id = None
 
     def encode(self):
         return {'id': self.id,
-                'data_group': self.data_group,
+                'svc_instance': self.svc_instance,
                 'bucket': self.bucket,
                 'obj_prefix': self.obj_prefix,
                 'creds_id': self.creds_id}
 
     def decode(self, d):
         self.id = d.get('id')
-        self.data_group = d.get('data_group')
+        self.svc_instance = d.get('svc_instance')
         self.bucket = d.get('bucket')
         self.obj_prefix = d.get('obj_prefix')
         self.creds_id = d.get('creds_id')
@@ -214,7 +214,7 @@ class OCSNTenant(OCSNEntity):
                 }
 
 
-class OCSNService:
+class OCSNService(OCSNEntity):
     def __init__(self, id = None, name = None, region = None, endpoint = None):
         self.id = id
         self.name = name
