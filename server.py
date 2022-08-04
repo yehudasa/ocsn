@@ -1,14 +1,9 @@
 from flask import Flask, request
 
 from .ocsn_types import *
-from .etcd_client import *
-
-import etcd3
 
 app = Flask(__name__)
 app.json_encoder = OCSNEntityJSONEncoder
-
-etcd_client = EtcdClient()
 
 @app.route('/')
 def index():
@@ -48,7 +43,7 @@ def svc_handler(service):
 
     return ''
 
-@app.route('/service_instance/<id>', methods = ['GET', 'POST', 'DELETE'])
+@app.route('/svci/<id>', methods = ['GET', 'POST', 'DELETE'])
 def svci_handler(id):
     #GET
     if request.method == 'GET':

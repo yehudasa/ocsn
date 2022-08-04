@@ -3,10 +3,9 @@ from abc import abstractmethod
 from flask import json
 from flask.json import JSONEncoder
 
-from .redis_client import RedisClient
+from .redis_client import RedisClient, redis_client
 
 
-redis_client = RedisClient()
 
 
 
@@ -266,12 +265,90 @@ class OCSNServiceInstance(OCSNEntity):
                 'creds': self.creds,
                 }
 
+class OCSNDataFlowEntity(OCSNEntity):
+    def __init__(self, id = None, svc = None, bucket = None):
+        self.id = id
+        self.svc = svc
+        self.bucket = bucket
 
-class OCSNDataFlowPolicy:
-    def __init__(self, id = None):
-        # TODO
-        pass
+    def decode(self, d):
+        self.id = d.get('id')
+        self.svc = d.get('svc')
+        self.bucket = d.get('bucket')
+        return self
+
+    def encode(self):
+        return {'id': self.id,
+                'svc': self.source,
+                'bucket': self.dest,
+                }
+
+class OCSNDirectionalFlow(OCSNEntity):
+    def __init__(self, id = None, source = None, dest = None):
+        self.id = id
+        self.source = source
+        self.dest = dest
+
+    def decode(self, d):
+        self.id = d.get('id')
+        self.source = d.get('source')
+        self.dest = d.get('dest')
+        return self
+
+    def encode(self):
+        return {'id': self.id,
+                'source': self.source,
+                'dest': self.dest,
+                }
 
 
+class OCSNSymmetricFlow(OCSNEntity):
+    def __init__(self, id = None, entities = None):
+        self.id = id
+        self.entities
+
+    def decode(self, d):
+        self.id = d.get('id')
+        self.entities = decode_list(d.get('entities'), str)
+        return self
+
+    def encode(self):
+        return {'id': self.id,
+                'entites': self.entities,
+                }
 
 
+class OCSNDataFlowGroup(OCSNEntity):
+    def __init__(self, id = None, directional = None, symmetric = None):
+        self.directional = directional
+        self.symmetric = symmetric
+    
+    def decode(self, d):
+        self.id = d.get('id')
+        self.directional = decode_list(d.get('directional'), OCSNDirectionalFlow)
+        self.symmetric = decode_list(d.get('symmetric'), OCSNSymmetricFlow)
+        return self
+
+    def encode(self):
+        return {'id': self.id,
+                'directional': self.directional,
+                'symmetric': self.symmetric,
+                }
+
+class OCSNDataFlowPolicy(OCSNEntity):
+    def __init__(self, id = None, groups = None):
+        self.groups = groups
+
+    def decode(self, d):
+        self.id = d.get('id')
+        self.groups = decode_list(d.get('groups'), OCSNDataFlowPolicy)
+        return self
+
+    def encode(self):
+        return {'id': self.id,
+                'groups': self.groups,
+                }
+
+
+class OCSNDataFlowInstance(OCSNDataFlow):
+    pass

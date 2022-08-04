@@ -1,7 +1,8 @@
 import redis
+import ocsn_err
+import service
 from redis.commands.json.path import Path
-from .ocsn_err import OCSNException, OCSNError
- 
+
 
 
 class RedisClient:
@@ -14,6 +15,15 @@ class RedisClient:
         return result
             
     def put(self, key, data):
-        print('redis-json put: key={k} data={d}'.format(k=key, d=data))
         self.client.json().set(key, Path.root_path(), data)
 
+    def list(self, prefix = ''):
+        cursor = ''
+        while cursor != 0:
+            cursor, keys = self.client.scan(cursor=cursor, match=prefix + '*')
+
+            for k in keys:
+                yield self.get(k)
+
+
+redis_client = RedisClient()
