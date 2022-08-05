@@ -1,6 +1,5 @@
 import redis
-import ocsn_err
-import service
+from .ocsn_err import *
 from redis.commands.json.path import Path
 
 
@@ -16,6 +15,9 @@ class RedisClient:
             
     def put(self, key, data):
         self.client.json().set(key, Path.root_path(), data)
+
+    def remove(self, key):
+        self.client.json().delete(key)
 
     def list(self, prefix = ''):
         cursor = ''

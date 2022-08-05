@@ -1,6 +1,6 @@
 from flask import Flask, request
 
-from .ocsn_types import *
+from ocsn.ocsn_types import *
 
 app = Flask(__name__)
 app.json_encoder = OCSNEntityJSONEncoder
@@ -32,6 +32,12 @@ def svc_handler(service):
     if request.method == 'GET':
         svc = OCSNService(id = service).load()
         return svc.encode_json()
+
+    if request.method == 'DELETE':
+        svc = OCSNService(id = service).load()
+        if svc:
+            svc.remove()
+        return ''
 
     # POST
     data = request.get_data()

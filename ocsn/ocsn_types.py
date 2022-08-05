@@ -56,6 +56,10 @@ class OCSNEntity(json.JSONEncoder):
         k = self.get_key()
         redis_client.put(k, self.encode_json())
 
+    def remove(self):
+        k = self.get_key()
+        redis_client.remove(k)
+
 
 
 class OCSNEntityJSONEncoder(JSONEncoder):
@@ -220,8 +224,11 @@ class OCSNService(OCSNEntity):
         self.region = region
         self.endpoint = endpoint
 
+    def get_prefix():
+        return 'svc/'
+
     def get_key(self):
-        return 'svc/' + self.id
+        return __class__.get_prefix() + self.id
 
     def decode(self, d):
         self.id = d.get('id')
@@ -350,5 +357,5 @@ class OCSNDataFlowPolicy(OCSNEntity):
                 }
 
 
-class OCSNDataFlowInstance(OCSNDataFlow):
+class OCSNDataFlowInstance(OCSNEntity):
     pass
