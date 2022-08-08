@@ -52,9 +52,9 @@ class OCSNEntity(json.JSONEncoder):
         v = redis_client.get(self.get_key())
         return self.decode_json(v)
 
-    def store(self):
+    def store(self, exclusive = None, only_modify = None):
         k = self.get_key()
-        redis_client.put(k, self.encode_json())
+        redis_client.put(k, self.encode_json(), exclusive = exclusive, only_modify = only_modify)
 
     def remove(self):
         k = self.get_key()
@@ -253,23 +253,26 @@ class OCSNServiceInstance(OCSNEntity):
         self.buckets = buckets
         self.creds = creds
 
+    def get_prefix():
+        return 'svci/'
+
     def get_key(self):
-        return 'dg/' + self.id
+        return __class__.get_prefix() + self.id
 
     def decode(self, d):
         self.id = d.get('id')
         self.name = d.get('name')
-        self.svc = d.get('svc')
-        self.buckets = d.get('buckets')
-        self.creds = d.get('creds')
+        self.svc_id = d.get('svc_id')
+        self.buckets = decode_list(d.get('buckets'), str)
+        self.cred_ids = decode_list(d.get('cred_ids'), str)
         return self
 
     def encode(self):
         return {'id': self.id,
                 'name': self.name,
-                'svc': self.svc,
+                'svc_id': self.svc_id,
                 'buckets': self.buckets,
-                'creds': self.creds,
+                'cred_ids': self.creds,
                 }
 
 class OCSNDataFlowEntity(OCSNEntity):

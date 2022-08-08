@@ -10,3 +10,11 @@ class OCSNServiceCtl:
         for item in redis_client.list(OCSNService.get_prefix()):
             yield OCSNService().decode_json(item)
 
+class OCSNServiceInstanceCtl:
+    def __init__(self):
+        pass
+
+    def list(self):
+        for item in redis_client.list(OCSNServiceInstance.get_prefix()):
+            yield OCSNServiceInstance().decode_json(item)
+

@@ -13,8 +13,8 @@ class RedisClient:
 
         return result
             
-    def put(self, key, data):
-        self.client.json().set(key, Path.root_path(), data)
+    def put(self, key, data, exclusive = None, only_modify = None):
+        self.client.json().set(key, Path.root_path(), data, nx = exclusive, xx = only_modify)
 
     def remove(self, key):
         self.client.json().delete(key)
