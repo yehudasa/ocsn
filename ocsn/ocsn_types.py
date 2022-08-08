@@ -73,26 +73,33 @@ class Credentials(OCSNEntity):
     pass
 
 
-class OCSNS3Credes(Credentials):
+class OCSNS3Creds(Credentials):
 
-    def __init__(self):
-        self.id = None
-        self.access_key = None
-        self.secret = None
+    def __init__(self, svci, id = None, access_key = None, secret = None):
+        self.svci = svci
+        self.id = id
+        self.access_key = access_key
+        self.secret = secret
 
     def encode(self):
-        return {'id': self.id,
+        return {'svci': self.svci,
+                'id': self.id,
                 'access_key': self.access_key,
                 'secret': self.secret }
     
     def decode(self, d):
+        self.svci = d.get('svci')
         self.id = d.get('id')
         self.access_key = d.get('access_key')
         self.secret = d.get('secret')
         return self
 
+    def get_prefix(self):
+        return 'creds/' + self.svci + '/s3/'
+
     def get_key(self):
-        return 'creds/s3/' + self.id
+        return self.get_prefix() + self.id
+
 
 class OCSNDataPolicy(OCSNEntity):
 
