@@ -5,6 +5,7 @@ import string
 
 from ocsn.ocsn_err import *
 from ocsn.service import *
+from ocsn.tenant import *
 
 import json
 
@@ -32,7 +33,7 @@ The subcommands are:
    list                          List services
    create                        Create a new service
    modify                        Modify an existing service
-   remove                        Remove a new service
+   remove                        Remove a service
 ''')
         parser.add_argument('subcommand', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -64,14 +65,14 @@ The subcommands are:
 
         id_required = only_modify
 
-        parser.add_argument('--id', required = id_required)
+        parser.add_argument('--svc-id', required = id_required)
         parser.add_argument('--name')
         parser.add_argument('--region')
         parser.add_argument('--endpoint')
 
         args = parser.parse_args(sys.argv[3:])
 
-        id = args.id or gen_id('svc')
+        id = args.svc_id or gen_id('svc')
 
         svc = OCSNService(id = id, name = args.name, region = args.region, endpoint = args.endpoint)
         svc.store(exclusive = not only_modify, only_modify = only_modify)
@@ -88,11 +89,11 @@ The subcommands are:
             description='Remove a service',
             usage='ocsn svc remove')
 
-        parser.add_argument('--id', required = True)
+        parser.add_argument('--svc_id', required = True)
 
         args = parser.parse_args(sys.argv[3:])
 
-        svc = OCSNService(id = args.id)
+        svc = OCSNService(id = args.svc_id)
         svc.remove()
 
 
@@ -111,7 +112,7 @@ The subcommands are:
    list                          List service instances
    create                        Create a new service instance
    modify                        Modify an existing service instancce
-   remove                        Remove a new service instance
+   remove                        Remove a service instance
 ''')
         parser.add_argument('subcommand', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -143,7 +144,7 @@ The subcommands are:
 
         id_required = only_modify
 
-        parser.add_argument('--id', required = id_required)
+        parser.add_argument('--svci-id', required = id_required)
         parser.add_argument('--name')
         parser.add_argument('--svc-id')
         parser.add_argument('--buckets')
@@ -154,7 +155,7 @@ The subcommands are:
         buckets = split_list_arg(args.buckets)
         creds = split_list_arg(args.creds)
 
-        id = args.id or gen_id('svci')
+        id = args.svci_id or gen_id('svci')
 
         svci = OCSNServiceInstance(id = id, name = args.name, svc_id = args.svc_id, buckets = buckets, creds = creds)
         svci.store(exclusive = not only_modify, only_modify = only_modify)
@@ -171,11 +172,11 @@ The subcommands are:
             description='Remove a service instance',
             usage='ocsn svci remove')
 
-        parser.add_argument('--id', required = True)
+        parser.add_argument('--svci-id', required = True)
 
         args = parser.parse_args(sys.argv[3:])
 
-        svci = OCSNServiceInstance(id = args.id)
+        svci = OCSNServiceInstance(id = args.svci_id)
         svci.remove()
 
 
@@ -211,11 +212,11 @@ The subcommands are:
             description='List credentials under specific service instance',
             usage='ocsn creds list')
 
-        parser.add_argument('--svci', required = True)
+        parser.add_argument('--svci_id', required = True)
 
         args = parser.parse_args(sys.argv[3:])
 
-        creds = OCSNS3CredsCtl(args.svci)
+        creds = OCSNS3CredsCtl(args.svci_id)
 
         result = ([ e.encode() for e in creds.list() ])
 
@@ -227,16 +228,16 @@ The subcommands are:
             description=desc,
             usage=usage)
 
-        parser.add_argument('--svci', required = True)
-        parser.add_argument('--id')
+        parser.add_argument('--svci-id', required = True)
+        parser.add_argument('--creds-id')
         parser.add_argument('--access-key', required = True)
         parser.add_argument('--secret', required = True)
 
         args = parser.parse_args(sys.argv[3:])
 
-        id = args.id or gen_id('s3creds')
+        id = args.creds_id or gen_id('s3creds')
 
-        creds = OCSNS3Creds(args.svci, id = id, access_key = args.access_key, secret = args.secret)
+        creds = OCSNS3Creds(args.svci_id, id = id, access_key = args.access_key, secret = args.secret)
         creds.store(exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -251,13 +252,249 @@ The subcommands are:
             description='Remove credentials',
             usage='ocsn creds remove')
 
-        parser.add_argument('--svci', required = True)
-        parser.add_argument('--id', required = True)
+        parser.add_argument('--svci-id', required = True)
+        parser.add_argument('--creds-id', required = True)
 
         args = parser.parse_args(sys.argv[3:])
 
-        creds = OCSNS3Creds(args.svci, id = args.id)
+        creds = OCSNS3Creds(args.svci_id, id = args.creds_id)
         creds.remove()
+
+
+class BucketInstance:
+    def __init__(self, env, args):
+        self.env = env
+        self.args = args
+
+    def parse(self):
+        parser = argparse.ArgumentParser(
+            description='OCSN control tool',
+            usage='''ocsn bi <subcommand> [...]
+
+The subcommands are:
+   list                          List bucket instances
+   create                        Create a bucket instance
+''')
+        parser.add_argument('subcommand', help='Subcommand to run')
+        # parse_args defaults to [1:] for args, but you need to
+        # exclude the rest of the args too, or validation will fail
+        args = parser.parse_args(self.args[0:1])
+        if not hasattr(self, args.subcommand):
+            print('Unrecognized subcommand:', args.subcommand)
+            parser.print_help()
+            exit(1)
+        # use dispatch pattern to invoke method with same name
+        return getattr(self, args.subcommand)
+
+    def list(self):
+        parser = argparse.ArgumentParser(
+            description='List bucket instances under a specific service instance',
+            usage='ocsn creds list')
+
+        parser.add_argument('--svci-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        bis = OCSNS3BICtl(args.svci_id)
+
+        result = ([ e.encode() for e in bis.list() ])
+
+        print(json.dumps(result, indent=2))
+
+    def _do_store(self, only_modify, desc, usage):
+
+        parser = argparse.ArgumentParser(
+            description=desc,
+            usage=usage)
+
+        parser.add_argument('--svci-id', required = True)
+        parser.add_argument('--bi-id')
+        parser.add_argument('--bucket')
+        parser.add_argument('--obj-prefix')
+        parser.add_argument('--creds-id')
+
+        args = parser.parse_args(sys.argv[3:])
+
+        id = args.bi_id or gen_id('bi')
+
+        bi = OCSNBucketInstance(args.svci, id = id, bucket = args.bucket, obj_prefix = args.obj_prefix, creds_id = args.creds_id)
+        bi.store(exclusive = not only_modify, only_modify = only_modify)
+
+    def create(self):
+        self._do_store(False, 'Create a bucket instance', 'ocsn bi create')
+
+    def modify(self):
+        self._do_store(True, 'Modify a bucket instance', 'ocsn bi modify')
+
+    def remove(self):
+
+        parser = argparse.ArgumentParser(
+            description='Remove a bucket instance',
+            usage='ocsn bi remove')
+
+        parser.add_argument('--svci-id', required = True)
+        parser.add_argument('--bi-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        bi = OCSNS3Creds(args.svci, id = args.bi_id)
+        bi.remove()
+
+
+class TenantCommand:
+    def __init__(self, env, args):
+        self.env = env
+        self.args = args
+
+    def parse(self):
+        parser = argparse.ArgumentParser(
+            description='OCSN control tool',
+            usage='''ocsn tenant <subcommand> [...]
+
+The subcommands are:
+   list                          List tenants
+   create                        Create a new tenant
+   modify                        Modify an existing tenant
+   remove                        Remove a tenant
+''')
+        parser.add_argument('subcommand', help='Subcommand to run')
+        # parse_args defaults to [1:] for args, but you need to
+        # exclude the rest of the args too, or validation will fail
+        args = parser.parse_args(self.args[0:1])
+        if not hasattr(self, args.subcommand):
+            print('Unrecognized subcommand:', args.subcommand)
+            parser.print_help()
+            exit(1)
+        # use dispatch pattern to invoke method with same name
+        return getattr(self, args.subcommand)
+
+    def list(self):
+        parser = argparse.ArgumentParser(
+            description='List tenants',
+            usage='ocsn tenant list')
+
+        tc = OCSNTenantCtl()
+
+        result = ([ e.encode() for e in tc.list() ])
+
+        print(json.dumps(result, indent=2))
+
+    def _do_store(self, only_modify, desc, usage):
+
+        parser = argparse.ArgumentParser(
+            description=desc,
+            usage=usage)
+
+        id_required = only_modify
+
+        parser.add_argument('--tenant-id', required = id_required)
+        parser.add_argument('--name')
+
+        args = parser.parse_args(sys.argv[3:])
+
+        id = args.tenant_id or gen_id('tenant')
+
+        tenant = OCSNService(id = id, name = args.name)
+        tenant.store(exclusive = not only_modify, only_modify = only_modify)
+
+    def create(self):
+        self._do_store(False, 'Create a tenant', 'ocsn tenant create')
+
+    def modify(self):
+        self._do_store(True, 'Modify a tenant', 'ocsn tenant modify')
+
+    def remove(self):
+
+        parser = argparse.ArgumentParser(
+            description='Remove a tenant',
+            usage='ocsn tenant remove')
+
+        parser.add_argument('--tenant-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        svc = OCSNTenant(id = args.tenant_id)
+        svc.remove()
+
+
+class UserCommand:
+    def __init__(self, env, args):
+        self.env = env
+        self.args = args
+
+    def parse(self):
+        parser = argparse.ArgumentParser(
+            description='OCSN control tool',
+            usage='''ocsn user <subcommand> [...]
+
+The subcommands are:
+   list                          List users in a tenant
+   create                        Create new user
+   modify                        Modify user
+   remove                        Remove user 
+''')
+        parser.add_argument('subcommand', help='Subcommand to run')
+        # parse_args defaults to [1:] for args, but you need to
+        # exclude the rest of the args too, or validation will fail
+        args = parser.parse_args(self.args[0:1])
+        if not hasattr(self, args.subcommand):
+            print('Unrecognized subcommand:', args.subcommand)
+            parser.print_help()
+            exit(1)
+        # use dispatch pattern to invoke method with same name
+        return getattr(self, args.subcommand)
+
+    def list(self):
+        parser = argparse.ArgumentParser(
+            description='List users in a tenant',
+            usage='ocsn user list')
+
+        parser.add_argument('--tenant-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        uc = OCSNUserCtl(args.tenant_id)
+
+        result = ([ e.encode() for e in uc.list() ])
+
+        print(json.dumps(result, indent=2))
+
+    def _do_store(self, only_modify, desc, usage):
+
+        parser = argparse.ArgumentParser(
+            description=desc,
+            usage=usage)
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id')
+        parser.add_argument('--name')
+
+        args = parser.parse_args(sys.argv[3:])
+
+        id = args.user_id or gen_id('user-id')
+
+        u = OCSNUser(args.tenant_id, id = id, name = args.name)
+        u.store(exclusive = not only_modify, only_modify = only_modify)
+
+    def create(self):
+        self._do_store(False, 'Create user', 'ocsn user create')
+
+    def modify(self):
+        self._do_store(True, 'Modify user', 'ocsn user modify')
+
+    def remove(self):
+
+        parser = argparse.ArgumentParser(
+            description='Remove user',
+            usage='ocsn user remove')
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        u = OCSNS3Creds(args.tenant_id, id = args.user_id)
+        u.remove()
 
 
 
@@ -284,6 +521,18 @@ The commands are:
    creds create         Create credentials
    creds modify         Modify credentials
    creds remove         Remove credentials
+   bi list              List buckets
+   bi create            Create a bucket instance
+   bi modify            Modify a bucket instance
+   bi remove            Remove a bucket instance
+   tenant list          List tenants
+   tenant create        Create tenant
+   tenant modify        Modify tenant
+   tenant remove        Remove tenant
+   user list            List users
+   user create          Create user
+   user modify          Modify user
+   user remove          Remove user
 ''')
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -307,6 +556,14 @@ The commands are:
 
     def creds(self):
         cmd = CredsCommand(self.env, sys.argv[2:]).parse()
+        cmd()
+
+    def tenant(self):
+        cmd = TenantCommand(self.env, sys.argv[2:]).parse()
+        cmd()
+
+    def user(self):
+        cmd = UserCommand(self.env, sys.argv[2:]).parse()
         cmd()
 
 def main():

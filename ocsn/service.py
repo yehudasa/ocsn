@@ -28,3 +28,13 @@ class OCSNS3CredsCtl:
         for item in redis_client.list(prefix):
             yield creds.decode_json(item)
 
+class OCSNBucketInstanceCtl:
+    def __init__(self, svci):
+        self.svci = svci
+
+    def list(self):
+        bi = OCSNBucketInstance(self.svci)
+        prefix = bi.get_prefix()
+        for item in redis_client.list(prefix):
+            yield bi.decode_json(item)
+

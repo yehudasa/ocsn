@@ -111,15 +111,19 @@ class OCSNDataPolicy(OCSNEntity):
 
 class OCSNUser(OCSNEntity):
 
-    def __init__(self, id = None, name = None, creds = None, vbuckets = None, data_policy = None):
+    def __init__(self, tenant_id, id = None, name = None, creds = None, vbuckets = None, data_policy = None):
+        self.tenant_id = tenant_id
         self.id = id
         self.name = name
         self.creds = creds
         self.vbuckets = vbuckets
         self.data_policy = data_policy
 
+    def get_prefix(self):
+        return 'u/' + self.tenant_id
+
     def get_key(self):
-        return 'u/' + self.id
+        return self.get_prefix() + '/' + self.id
 
     def decode(self, d):
         self.id = d.get('id')
@@ -138,23 +142,29 @@ class OCSNUser(OCSNEntity):
 
 
 class OCSNBucketInstance(OCSNEntity):
-    def __init__(self):
-        self.id = None
-        self.svc_instance = None
-        self.bucket = None
-        self.obj_prefix = ''
-        self.creds_id = None
+    def __init__(self, svci, id = None, bucket = None, obj_prefix = '', creds_id = None):
+        self.svci = svci
+        self.id = id
+        self.bucket = bucket
+        self.obj_prefix = obj_prefix
+        self.creds_id = creds_id
+
+    def get_prefix(self):
+        return 'bi/' + self.tenant_id
+
+    def get_key(self):
+        return self.get_prefix() + '/' + self.id
 
     def encode(self):
         return {'id': self.id,
-                'svc_instance': self.svc_instance,
+                'svci': self.svci,
                 'bucket': self.bucket,
                 'obj_prefix': self.obj_prefix,
                 'creds_id': self.creds_id}
 
     def decode(self, d):
         self.id = d.get('id')
-        self.svc_instance = d.get('svc_instance')
+        self.svci = d.get('svci')
         self.bucket = d.get('bucket')
         self.obj_prefix = d.get('obj_prefix')
         self.creds_id = d.get('creds_id')
@@ -199,15 +209,18 @@ class OCSNVBucket(OCSNEntity):
 
 class OCSNTenant(OCSNEntity):
 
-    def __init__(self, id = None, name = None, users = None, buckets = None):
+    def __init__(self, id = None, name = None, users = None, vbuckets = None):
         self.id = id
         self.name = name
         self.creds = creds
         self.users = users
         self.vbuckets = vbuckets
 
+    def get_prefix():
+        return 't/'
+
     def get_key(self):
-        return 'tenant/' + self.id
+        return __class__.get_prefix() + self.id
 
     def decode(self, d):
         self.id = d.get('id')
