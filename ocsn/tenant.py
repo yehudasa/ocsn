@@ -20,3 +20,14 @@ class OCSNUserCtl:
         for item in redis_client.list(prefix):
             yield u.decode_json(item)
 
+class OCSNVBucketCtl:
+    def __init__(self, tenant_id, user_id):
+        self.tenant_id = tenant_id
+        self.user_id = user_id
+
+    def list(self):
+        vb = OCSNVBucket(self.tenant_id, self.user_id)
+        prefix = vb.get_prefix()
+        for item in redis_client.list(prefix):
+            yield vb.decode_json(item)
+

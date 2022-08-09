@@ -493,7 +493,90 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        u = OCSNS3Creds(args.tenant_id, id = args.user_id)
+        u = OCSNUser(args.tenant_id, id = args.user_id)
+        u.remove()
+
+
+class VBucketCommand:
+    def __init__(self, env, args):
+        self.env = env
+        self.args = args
+
+    def parse(self):
+        parser = argparse.ArgumentParser(
+            description='OCSN control tool',
+            usage='''ocsn user <subcommand> [...]
+
+The subcommands are:
+   list                          List vbuckets of a specific user
+   create                        Create a new vbucket
+   modify                        Modify a vbucket
+   remove                        Remove a vbucket 
+''')
+        parser.add_argument('subcommand', help='Subcommand to run')
+        # parse_args defaults to [1:] for args, but you need to
+        # exclude the rest of the args too, or validation will fail
+        args = parser.parse_args(self.args[0:1])
+        if not hasattr(self, args.subcommand):
+            print('Unrecognized subcommand:', args.subcommand)
+            parser.print_help()
+            exit(1)
+        # use dispatch pattern to invoke method with same name
+        return getattr(self, args.subcommand)
+
+    def list(self):
+        parser = argparse.ArgumentParser(
+            description='List users in a tenant',
+            usage='ocsn user list')
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        uvb = OCSNVBucketCtl(args.tenant_id, args.user_id)
+
+        result = ([ e.encode() for e in uvb.list() ])
+
+        print(json.dumps(result, indent=2))
+
+    def _do_store(self, only_modify, desc, usage):
+
+        parser = argparse.ArgumentParser(
+            description=desc,
+            usage=usage)
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id', required = True)
+        parser.add_argument('--vbucket-id')
+        parser.add_argument('--name')
+
+        args = parser.parse_args(sys.argv[3:])
+
+        id = args.vbucket_id or gen_id('user-id')
+
+        u = OCSNVBucket(args.tenant_id, args.user_id, id = id, name = args.name)
+        u.store(exclusive = not only_modify, only_modify = only_modify)
+
+    def create(self):
+        self._do_store(False, 'Create a vbucket', 'ocsn vbucket create')
+
+    def modify(self):
+        self._do_store(True, 'Modify a vbucket', 'ocsn vbucket modify')
+
+    def remove(self):
+
+        parser = argparse.ArgumentParser(
+            description='Remove a vbucket',
+            usage='ocsn vbucket remove')
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id', required = True)
+        parser.add_argument('--vbucket-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        u = OCSNVBucket(args.tenant_id, user_id = args.user_id, id = args.vbucket_id)
         u.remove()
 
 
@@ -530,9 +613,13 @@ The commands are:
    tenant modify        Modify tenant
    tenant remove        Remove tenant
    user list            List users
-   user create          Create user
-   user modify          Modify user
-   user remove          Remove user
+   user create          Create a user
+   user modify          Modify a user
+   user remove          Remove a user
+   vbucket list         List vbuckets os a specific user
+   vbucket create       Create a vbucket
+   vbucket modify       Modify a vbucket
+   vbucket remove       Remove a vbucket
 ''')
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -564,6 +651,10 @@ The commands are:
 
     def user(self):
         cmd = UserCommand(self.env, sys.argv[2:]).parse()
+        cmd()
+
+    def vbucket(self):
+        cmd = VBucketCommand(self.env, sys.argv[2:]).parse()
         cmd()
 
 def main():

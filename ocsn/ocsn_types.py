@@ -188,13 +188,18 @@ class OCSNBucketInstanceMapping(OCSNEntity):
 
 class OCSNVBucket(OCSNEntity):
 
-    def __init__(self, id = None, mappings = None):
+    def __init__(self, tenant_id, user_id, id = None, mappings = None):
+        self.tenant_id = tenant_id
+        self.user_id = user_id
         self.id = id
         self.name = None
         self.mappings = mappings
-    
+   
+    def get_prefix(self):
+        return 'b/' + self.tenant_id + '/' + self.user_id
+
     def get_key(self):
-        return 'b/' + self.id
+        return self.prefix + self.id
 
     def encode(self):
         return {'id': self.id,
