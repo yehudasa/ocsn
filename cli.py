@@ -89,7 +89,7 @@ The subcommands are:
             description='Remove a service',
             usage='ocsn svc remove')
 
-        parser.add_argument('--svc_id', required = True)
+        parser.add_argument('--svc-id', required = True)
 
         args = parser.parse_args(sys.argv[3:])
 
@@ -212,7 +212,7 @@ The subcommands are:
             description='List credentials under specific service instance',
             usage='ocsn creds list')
 
-        parser.add_argument('--svci_id', required = True)
+        parser.add_argument('--svci-id', required = True)
 
         args = parser.parse_args(sys.argv[3:])
 
@@ -394,7 +394,7 @@ The subcommands are:
 
         id = args.tenant_id or gen_id('tenant')
 
-        tenant = OCSNService(id = id, name = args.name)
+        tenant = OCSNTenant(id = id, name = args.name)
         tenant.store(exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -471,7 +471,7 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        id = args.user_id or gen_id('user-id')
+        id = args.user_id or gen_id('user')
 
         u = OCSNUser(args.tenant_id, id = id, name = args.name)
         u.store(exclusive = not only_modify, only_modify = only_modify)

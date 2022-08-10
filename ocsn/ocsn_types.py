@@ -180,6 +180,9 @@ class OCSNBucketInstanceMapping(OCSNEntity):
                 'bis': self.bis }
 
     def decode(self, d):
+        if not d:
+            return None
+
         self.id = d.get('id')
         self.bis = decode_list(d.get('bis'), OCSNBucketInstance)
         # self.data_policy = OCSNDataPolicy().decode(d.get('data_policy'))
@@ -188,18 +191,18 @@ class OCSNBucketInstanceMapping(OCSNEntity):
 
 class OCSNVBucket(OCSNEntity):
 
-    def __init__(self, tenant_id, user_id, id = None, mappings = None):
+    def __init__(self, tenant_id, user_id, id = None, name = None, mappings = None):
         self.tenant_id = tenant_id
         self.user_id = user_id
         self.id = id
-        self.name = None
+        self.name = name
         self.mappings = mappings
    
     def get_prefix(self):
         return 'b/' + self.tenant_id + '/' + self.user_id
 
     def get_key(self):
-        return self.prefix + self.id
+        return self.get_prefix() + self.id
 
     def encode(self):
         return {'id': self.id,
@@ -212,12 +215,12 @@ class OCSNVBucket(OCSNEntity):
         self.mappings = OCSNBucketInstanceMapping().decode(d.get('mappings'))
         return self
 
+
 class OCSNTenant(OCSNEntity):
 
     def __init__(self, id = None, name = None, users = None, vbuckets = None):
         self.id = id
         self.name = name
-        self.creds = creds
         self.users = users
         self.vbuckets = vbuckets
 
