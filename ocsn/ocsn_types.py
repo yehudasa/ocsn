@@ -79,6 +79,12 @@ class OCSNS3Creds(Credentials):
         self.access_key = access_key
         self.secret = secret
 
+    def apply(self, access_key = None, secret = None):
+        if access_key:
+            self.access_key = access_key
+        if secret:
+            self.secret = secret
+
     def encode(self):
         return {'svci': self.svci,
                 'id': self.id,
@@ -117,6 +123,16 @@ class OCSNUser(OCSNEntity):
         self.vbuckets = vbuckets
         self.data_policy = data_policy
 
+    def apply(self, name = None, creds = None, vbuckets = None, data_policy = None):
+        if name:
+            self.name = name
+        if creds:
+            self.creds = creds
+        if vbuckets:
+            self.vbuckets = vbuckets
+        if data_policy:
+            self.data_policy = data_policy
+
     def get_prefix(self):
         return 'u/' + self.tenant_id
 
@@ -146,6 +162,14 @@ class OCSNBucketInstance(OCSNEntity):
         self.bucket = bucket
         self.obj_prefix = obj_prefix
         self.creds_id = creds_id
+
+    def apply(self, bucket = None, obj_prefix = None, creds_id = None):
+        if bucket:
+            self.bucket = bucket
+        if obj_prefix:
+            self.obj_prefix = obj_prefix
+        if creds_id:
+            self.creds_id = creds_id
 
     def get_prefix(self):
         return 'bi/' + self.svci
@@ -195,6 +219,12 @@ class OCSNVBucket(OCSNEntity):
         self.id = id
         self.name = name
         self.mappings = mappings
+
+    def apply(self, name = None, mappings = None):
+        if name:
+            self.name = name
+        if mappings:
+            self.mappings = mappings
    
     def get_prefix(self):
         return 'b/' + self.tenant_id + '/' + self.user_id
@@ -221,6 +251,14 @@ class OCSNTenant(OCSNEntity):
         self.name = name
         self.users = users
         self.vbuckets = vbuckets
+
+    def apply(self, name = None, users = None, vbuckets = None):
+        if name:
+            self.name = name
+        if users:
+            self.users = users
+        if vbuckets:
+            self.vbuckets = vbuckets
 
     def get_prefix():
         return 't/'
@@ -250,6 +288,14 @@ class OCSNService(OCSNEntity):
         self.region = region
         self.endpoint = endpoint
 
+    def apply(self, name = None, region = None, endpoint = None):
+        if name:
+            self.name = name
+        if region:
+            self.region = region
+        if endpoint:
+            self.endpoint = endpoint
+
     def get_prefix():
         return 'svc/'
 
@@ -278,6 +324,16 @@ class OCSNServiceInstance(OCSNEntity):
         self.svc_id = svc_id
         self.buckets = buckets
         self.creds = creds
+
+    def apply(self, name = None, svc_id = None, buckets = None, creds = None):
+        if name:
+            self.name = name
+        if svc_id:
+            self.svc_id = svc_id
+        if buckets:
+            self.buckets = buckets
+        if creds:
+            self.creds = creds
 
     def get_prefix():
         return 'svci/'

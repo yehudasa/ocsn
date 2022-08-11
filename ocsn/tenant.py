@@ -18,8 +18,9 @@ class OCSNUserCtl:
     def list(self):
         u = OCSNUser(self.tenant_id)
         prefix = u.get_prefix()
-        for item in self.client.list(client, prefix):
+        for item in self.client.list(prefix):
             yield u.decode_json(item)
+
 
 class OCSNVBucketCtl:
     def __init__(self, client, tenant_id, user_id):

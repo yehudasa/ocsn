@@ -75,7 +75,11 @@ The subcommands are:
 
         id = args.svc_id or gen_id('svc')
 
-        svc = OCSNService(id = id, name = args.name, region = args.region, endpoint = args.endpoint)
+        svc = OCSNService(id = id)
+        if only_modify:
+            svc.load(redis_client)
+
+        svc.apply(name = args.name, region = args.region, endpoint = args.endpoint)
         svc.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -158,7 +162,11 @@ The subcommands are:
 
         id = args.svci_id or gen_id('svci')
 
-        svci = OCSNServiceInstance(id = id, name = args.name, svc_id = args.svc_id, buckets = buckets, creds = creds)
+        svci = OCSNServiceInstance(id = id)
+        if only_modify:
+            svci.load(redis_client)
+
+        svci.apply(name = args.name, svc_id = args.svc_id, buckets = buckets, creds = creds)
         svci.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -238,7 +246,11 @@ The subcommands are:
 
         id = args.creds_id or gen_id('s3creds')
 
-        creds = OCSNS3Creds(args.svci_id, id = id, access_key = args.access_key, secret = args.secret)
+        creds = OCSNS3Creds(args.svci_id, id = id)
+        if only_modify:
+            creds.load(redis_client)
+
+        creds.apply(access_key = args.access_key, secret = args.secret)
         creds.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -318,7 +330,12 @@ The subcommands are:
 
         id = args.bi_id or gen_id('bi')
 
-        bi = OCSNBucketInstance(args.svci_id, id = id, bucket = args.bucket, obj_prefix = args.obj_prefix, creds_id = args.creds_id)
+        bi = OCSNBucketInstance(args.svci_id, id = id)
+
+        if only_modify:
+            bi.load(redis_client)
+
+        bi.apply(bucket = args.bucket, obj_prefix = args.obj_prefix, creds_id = args.creds_id)
         bi.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -396,6 +413,10 @@ The subcommands are:
         id = args.tenant_id or gen_id('tenant')
 
         tenant = OCSNTenant(id = id, name = args.name)
+        if only_modify:
+            tenant.load(redis_client)
+
+        tenant.apply(name = args.name)
         tenant.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -474,7 +495,11 @@ The subcommands are:
 
         id = args.user_id or gen_id('user')
 
-        u = OCSNUser(args.tenant_id, id = id, name = args.name)
+        u = OCSNUser(args.tenant_id, id = id)
+        if only_modify:
+            u.load(redis_client)
+
+        u.apply(name = args.name)
         u.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -556,7 +581,11 @@ The subcommands are:
 
         id = args.vbucket_id or gen_id('user-id')
 
-        u = OCSNVBucket(args.tenant_id, args.user_id, id = id, name = args.name)
+        u = OCSNVBucket(args.tenant_id, args.user_id, id = id)
+        if only_modify:
+            u.load(redis_client)
+
+        u.apply(args.tenant_id, args.user_id, id = id, name = args.name)
         u.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
