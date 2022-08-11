@@ -1,6 +1,8 @@
 from flask import Flask, request
 
 from ocsn.ocsn_types import *
+from ocsn.redis_client import RedisClient, redis_client
+
 
 app = Flask(__name__)
 app.json_encoder = OCSNEntityJSONEncoder
@@ -13,7 +15,7 @@ def index():
 def user_handler(username):
     #GET
     if request.method == 'GET':
-        u = OCSNUser(id = username).load()
+        u = OCSNUser(id = username).load(redis_client)
         return u.encode_json()
 
     # POST
@@ -22,7 +24,7 @@ def user_handler(username):
     u = u.decode_json(data)
     if u:
         u.id = username # force provided id
-        u.store()
+        u.store(redis_client)
 
     return ''
 
@@ -30,11 +32,11 @@ def user_handler(username):
 def svc_handler(service):
     #GET
     if request.method == 'GET':
-        svc = OCSNService(id = service).load()
+        svc = OCSNService(id = service).load(redis_client)
         return svc.encode_json()
 
     if request.method == 'DELETE':
-        svc = OCSNService(id = service).load()
+        svc = OCSNService(id = service).load(redis_client)
         if svc:
             svc.remove()
         return ''
@@ -45,7 +47,7 @@ def svc_handler(service):
     svc = svc.decode_json(data)
     if svc:
         svc.id = service # force provided id
-        svc.store()
+        svc.store(redis_client)
 
     return ''
 
@@ -53,7 +55,7 @@ def svc_handler(service):
 def svci_handler(id):
     #GET
     if request.method == 'GET':
-        svci = OCSNServiceInstance(id = id).load()
+        svci = OCSNServiceInstance(id = id).load(redis_client)
         return svci.encode_json()
 
     # POST
@@ -62,7 +64,7 @@ def svci_handler(id):
     svci = svci.decode_json(data)
     if svci:
         svci.id = id # force provided id
-        svci.store()
+        svci.store(redis_client)
 
     return ''
 

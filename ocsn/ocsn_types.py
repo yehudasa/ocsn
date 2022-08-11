@@ -3,8 +3,6 @@ from abc import abstractmethod
 from flask import json
 from flask.json import JSONEncoder
 
-from .redis_client import RedisClient, redis_client
-
 
 
 
@@ -48,17 +46,17 @@ class OCSNEntity(json.JSONEncoder):
     def encode_json(self):
         return json.dumps(self.encode())
 
-    def load(self):
-        v = redis_client.get(self.get_key())
+    def load(self, client):
+        v = client.get(self.get_key())
         return self.decode_json(v)
 
-    def store(self, exclusive = None, only_modify = None):
+    def store(self, client, exclusive = None, only_modify = None):
         k = self.get_key()
-        redis_client.put(k, self.encode_json(), exclusive = exclusive, only_modify = only_modify)
+        client.put(k, self.encode_json(), exclusive = exclusive, only_modify = only_modify)
 
-    def remove(self):
+    def remove(self, client):
         k = self.get_key()
-        redis_client.remove(k)
+        client.remove(k)
 
 
 

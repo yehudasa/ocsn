@@ -14,7 +14,9 @@ class RedisClient:
         return result
             
     def put(self, key, data, exclusive = None, only_modify = None):
-        self.client.json().set(key, Path.root_path(), data, nx = exclusive, xx = only_modify)
+        p = self.client.pipeline()
+        p.json().set(key, Path.root_path(), data, nx = exclusive, xx = only_modify)
+        p.execute()
 
     def remove(self, key):
         self.client.json().delete(key)
@@ -26,6 +28,21 @@ class RedisClient:
 
             for k in keys:
                 yield self.get(k)
+
+
+
+class RedisTrans:
+    def __init__(self, client):
+        self.client = client
+        self.pipeline = None
+
+    def start(self):
+        self.pipeline = self.client.pipeline()
+        return self.pipeline
+
+    def commit(self):
+        self.pipeline.execute()
+        self.pipeline = None
 
 
 redis_client = RedisClient()

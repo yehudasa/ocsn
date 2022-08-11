@@ -6,6 +6,7 @@ import string
 from ocsn.ocsn_err import *
 from ocsn.service import *
 from ocsn.tenant import *
+from ocsn.redis_client import *
 
 import json
 
@@ -51,7 +52,7 @@ The subcommands are:
             description='List services',
             usage='ocsn svc list')
 
-        svc = OCSNServiceCtl()
+        svc = OCSNServiceCtl(redis_client)
 
         result = ([ e.encode() for e in svc.list() ])
 
@@ -75,7 +76,7 @@ The subcommands are:
         id = args.svc_id or gen_id('svc')
 
         svc = OCSNService(id = id, name = args.name, region = args.region, endpoint = args.endpoint)
-        svc.store(exclusive = not only_modify, only_modify = only_modify)
+        svc.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
         self._do_store(False, 'Create a service', 'ocsn svc create')
@@ -94,7 +95,7 @@ The subcommands are:
         args = parser.parse_args(sys.argv[3:])
 
         svc = OCSNService(id = args.svc_id)
-        svc.remove()
+        svc.remove(redis_client)
 
 
 
@@ -158,7 +159,7 @@ The subcommands are:
         id = args.svci_id or gen_id('svci')
 
         svci = OCSNServiceInstance(id = id, name = args.name, svc_id = args.svc_id, buckets = buckets, creds = creds)
-        svci.store(exclusive = not only_modify, only_modify = only_modify)
+        svci.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
         self._do_store(False, 'Create a service instance', 'ocsn svci create')
@@ -177,7 +178,7 @@ The subcommands are:
         args = parser.parse_args(sys.argv[3:])
 
         svci = OCSNServiceInstance(id = args.svci_id)
-        svci.remove()
+        svci.remove(redis_client)
 
 
 class CredsCommand:
@@ -238,7 +239,7 @@ The subcommands are:
         id = args.creds_id or gen_id('s3creds')
 
         creds = OCSNS3Creds(args.svci_id, id = id, access_key = args.access_key, secret = args.secret)
-        creds.store(exclusive = not only_modify, only_modify = only_modify)
+        creds.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
         self._do_store(False, 'Create credentials', 'ocsn creds create')
@@ -258,7 +259,7 @@ The subcommands are:
         args = parser.parse_args(sys.argv[3:])
 
         creds = OCSNS3Creds(args.svci_id, id = args.creds_id)
-        creds.remove()
+        creds.remove(redis_client)
 
 
 class BucketInstance:
@@ -318,7 +319,7 @@ The subcommands are:
         id = args.bi_id or gen_id('bi')
 
         bi = OCSNBucketInstance(args.svci, id = id, bucket = args.bucket, obj_prefix = args.obj_prefix, creds_id = args.creds_id)
-        bi.store(exclusive = not only_modify, only_modify = only_modify)
+        bi.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
         self._do_store(False, 'Create a bucket instance', 'ocsn bi create')
@@ -338,7 +339,7 @@ The subcommands are:
         args = parser.parse_args(sys.argv[3:])
 
         bi = OCSNS3Creds(args.svci, id = args.bi_id)
-        bi.remove()
+        bi.remove(redis_client)
 
 
 class TenantCommand:
@@ -395,7 +396,7 @@ The subcommands are:
         id = args.tenant_id or gen_id('tenant')
 
         tenant = OCSNTenant(id = id, name = args.name)
-        tenant.store(exclusive = not only_modify, only_modify = only_modify)
+        tenant.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
         self._do_store(False, 'Create a tenant', 'ocsn tenant create')
@@ -414,7 +415,7 @@ The subcommands are:
         args = parser.parse_args(sys.argv[3:])
 
         svc = OCSNTenant(id = args.tenant_id)
-        svc.remove()
+        svc.remove(redis_client)
 
 
 class UserCommand:
@@ -474,7 +475,7 @@ The subcommands are:
         id = args.user_id or gen_id('user')
 
         u = OCSNUser(args.tenant_id, id = id, name = args.name)
-        u.store(exclusive = not only_modify, only_modify = only_modify)
+        u.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
         self._do_store(False, 'Create user', 'ocsn user create')
@@ -494,7 +495,7 @@ The subcommands are:
         args = parser.parse_args(sys.argv[3:])
 
         u = OCSNUser(args.tenant_id, id = args.user_id)
-        u.remove()
+        u.remove(redis_client)
 
 
 class VBucketCommand:
@@ -556,7 +557,7 @@ The subcommands are:
         id = args.vbucket_id or gen_id('user-id')
 
         u = OCSNVBucket(args.tenant_id, args.user_id, id = id, name = args.name)
-        u.store(exclusive = not only_modify, only_modify = only_modify)
+        u.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
         self._do_store(False, 'Create a vbucket', 'ocsn vbucket create')
@@ -577,7 +578,7 @@ The subcommands are:
         args = parser.parse_args(sys.argv[3:])
 
         u = OCSNVBucket(args.tenant_id, user_id = args.user_id, id = args.vbucket_id)
-        u.remove()
+        u.remove(redis_client)
 
 
 
