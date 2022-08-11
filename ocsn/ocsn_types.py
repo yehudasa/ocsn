@@ -148,7 +148,7 @@ class OCSNBucketInstance(OCSNEntity):
         self.creds_id = creds_id
 
     def get_prefix(self):
-        return 'bi/' + self.tenant_id
+        return 'bi/' + self.svci
 
     def get_key(self):
         return self.get_prefix() + '/' + self.id

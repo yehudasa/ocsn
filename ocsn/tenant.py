@@ -7,7 +7,7 @@ class OCSNTenantCtl:
         self.client = client
 
     def list(self):
-        for item in redis_client.list(self.client, OCSNTenant.get_prefix()):
+        for item in self.client.list(OCSNTenant.get_prefix()):
             yield OCSNTenant().decode_json(item)
 
 class OCSNUserCtl:
@@ -18,7 +18,7 @@ class OCSNUserCtl:
     def list(self):
         u = OCSNUser(self.tenant_id)
         prefix = u.get_prefix()
-        for item in redis_client.list(self.client, prefix):
+        for item in self.client.list(client, prefix):
             yield u.decode_json(item)
 
 class OCSNVBucketCtl:
@@ -30,6 +30,6 @@ class OCSNVBucketCtl:
     def list(self):
         vb = OCSNVBucket(self.tenant_id, self.user_id)
         prefix = vb.get_prefix()
-        for item in redis_client.list(self.client, prefix):
+        for item in self.client.list(prefix):
             yield vb.decode_json(item)
 

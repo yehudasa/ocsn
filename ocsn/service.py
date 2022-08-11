@@ -1,4 +1,4 @@
-from .ocsn_types import OCSNService, OCSNServiceInstance, OCSNS3Creds
+from .ocsn_types import OCSNService, OCSNServiceInstance, OCSNS3Creds, OCSNBucketInstance
 from .redis_client import *
 
 
@@ -11,8 +11,8 @@ class OCSNServiceCtl:
             yield OCSNService().decode_json(item)
 
 class OCSNServiceInstanceCtl:
-    def __init__(self):
-        pass
+    def __init__(self, client):
+        self.client = client
 
     def list(self):
         for item in self.client.list(OCSNServiceInstance.get_prefix()):

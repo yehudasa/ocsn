@@ -131,7 +131,7 @@ The subcommands are:
             description='List service instances',
             usage='ocsn svci list')
 
-        svci = OCSNServiceInstanceCtl()
+        svci = OCSNServiceInstanceCtl(redis_client)
 
         result = ([ e.encode() for e in svci.list() ])
 
@@ -217,7 +217,7 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        creds = OCSNS3CredsCtl(args.svci_id)
+        creds = OCSNS3CredsCtl(redis_client, args.svci_id)
 
         result = ([ e.encode() for e in creds.list() ])
 
@@ -296,7 +296,7 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        bis = OCSNS3BICtl(args.svci_id)
+        bis = OCSNBucketInstanceCtl(redis_client, args.svci_id)
 
         result = ([ e.encode() for e in bis.list() ])
 
@@ -318,7 +318,7 @@ The subcommands are:
 
         id = args.bi_id or gen_id('bi')
 
-        bi = OCSNBucketInstance(args.svci, id = id, bucket = args.bucket, obj_prefix = args.obj_prefix, creds_id = args.creds_id)
+        bi = OCSNBucketInstance(args.svci_id, id = id, bucket = args.bucket, obj_prefix = args.obj_prefix, creds_id = args.creds_id)
         bi.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -374,7 +374,7 @@ The subcommands are:
             description='List tenants',
             usage='ocsn tenant list')
 
-        tc = OCSNTenantCtl()
+        tc = OCSNTenantCtl(redis_client)
 
         result = ([ e.encode() for e in tc.list() ])
 
@@ -454,7 +454,7 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        uc = OCSNUserCtl(args.tenant_id)
+        uc = OCSNUserCtl(redis_client, args.tenant_id)
 
         result = ([ e.encode() for e in uc.list() ])
 
@@ -535,7 +535,7 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        uvb = OCSNVBucketCtl(args.tenant_id, args.user_id)
+        uvb = OCSNVBucketCtl(redis_client, args.tenant_id, args.user_id)
 
         result = ([ e.encode() for e in uvb.list() ])
 
@@ -644,6 +644,10 @@ The commands are:
 
     def creds(self):
         cmd = CredsCommand(self.env, sys.argv[2:]).parse()
+        cmd()
+
+    def bi(self):
+        cmd = BucketInstance(self.env, sys.argv[2:]).parse()
         cmd()
 
     def tenant(self):
