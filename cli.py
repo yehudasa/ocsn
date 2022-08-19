@@ -10,6 +10,10 @@ from ocsn.redis_client import *
 
 import json
 
+
+def dump_json(x):
+    return json.dumps(x, indent=2)
+
 def gen_id(entity_str):
     return entity_str + '-' + ''.join(random.choices(string.ascii_lowercase, k=7))
 
@@ -56,7 +60,7 @@ The subcommands are:
 
         result = ([ e.encode() for e in svc.list() ])
 
-        print(json.dumps(result, indent=2))
+        print(dump_json(result))
 
     def _do_store(self, only_modify, desc, usage):
 
@@ -139,7 +143,7 @@ The subcommands are:
 
         result = ([ e.encode() for e in svci.list() ])
 
-        print(json.dumps(result, indent=2))
+        print(dump_json(result))
 
     def _do_store(self, only_modify, desc, usage):
 
@@ -229,7 +233,7 @@ The subcommands are:
 
         result = ([ e.encode() for e in creds.list() ])
 
-        print(json.dumps(result, indent=2))
+        print(dump_json(result))
 
     def _do_store(self, only_modify, desc, usage):
 
@@ -312,7 +316,7 @@ The subcommands are:
 
         result = ([ e.encode() for e in bis.list() ])
 
-        print(json.dumps(result, indent=2))
+        print(dump_json(result))
 
     def _do_store(self, only_modify, desc, usage):
 
@@ -395,7 +399,7 @@ The subcommands are:
 
         result = ([ e.encode() for e in tc.list() ])
 
-        print(json.dumps(result, indent=2))
+        print(dump_json(result))
 
     def _do_store(self, only_modify, desc, usage):
 
@@ -479,7 +483,7 @@ The subcommands are:
 
         result = ([ e.encode() for e in uc.list() ])
 
-        print(json.dumps(result, indent=2))
+        print(dump_json(result))
 
     def _do_store(self, only_modify, desc, usage):
 
@@ -537,6 +541,7 @@ The subcommands are:
    list                          List vbuckets of a specific user
    create                        Create a new vbucket
    modify                        Modify a vbucket
+   info                          Show vbucket info
    remove                        Remove a vbucket 
 ''')
         parser.add_argument('subcommand', help='Subcommand to run')
@@ -564,7 +569,7 @@ The subcommands are:
 
         result = ([ e.encode() for e in uvb.list() ])
 
-        print(json.dumps(result, indent=2))
+        print(dump_json(result))
 
     def _do_store(self, only_modify, desc, usage):
 
@@ -579,13 +584,13 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        id = args.vbucket_id or gen_id('user-id')
+        id = args.vbucket_id or gen_id('vbucket-id')
 
         u = OCSNVBucket(args.tenant_id, args.user_id, id = id)
         if only_modify:
             u.load(redis_client)
 
-        u.apply(args.tenant_id, args.user_id, id = id, name = args.name)
+        u.apply(name = args.name)
         u.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
     def create(self):
@@ -593,6 +598,23 @@ The subcommands are:
 
     def modify(self):
         self._do_store(True, 'Modify a vbucket', 'ocsn vbucket modify')
+
+    def info(self):
+
+        parser = argparse.ArgumentParser(
+            description='Show vbucket info',
+            usage='ocsn vbucket info')
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id', required = True)
+        parser.add_argument('--vbucket-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        u = OCSNVBucket(args.tenant_id, args.user_id, id = args.vbucket_id)
+        u.load(redis_client)
+
+        print(dump_json(u.encode()))
 
     def remove(self):
 
@@ -646,9 +668,10 @@ The commands are:
    user create          Create a user
    user modify          Modify a user
    user remove          Remove a user
-   vbucket list         List vbuckets os a specific user
+   vbucket list         List vbuckets of a specific user
    vbucket create       Create a vbucket
    vbucket modify       Modify a vbucket
+   vbucket info         Show vbucket info
    vbucket remove       Remove a vbucket
 ''')
         parser.add_argument('command', help='Subcommand to run')
