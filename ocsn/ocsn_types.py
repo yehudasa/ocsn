@@ -17,6 +17,16 @@ def decode_list(d, T):
 
     return l
 
+def decode_dict(d, T):
+    if d is None:
+        return None
+
+    result = {}
+    for k, v in d.items():
+        result[k] = T.decode(v)
+
+    return result
+
 
 class OCSNEntity(json.JSONEncoder):
 
@@ -192,21 +202,55 @@ class OCSNBucketInstance(OCSNEntity):
         self.creds_id = d.get('creds_id')
         return self
 
+class OCSNBucketInstanceID(OCSNEntity):
+    def __init__(self, svci_id = None, bi_id = None):
+        self.svci_id = svci_id
+        self.bi_id = bi_id
+
+    def encode(self):
+        return {'bi': self.bi_id,
+                'svci': self.svci_id,
+                }
+
+    def decode(self, d):
+        self.bi_id = d.get('bi')
+        self.svci_id = d.get('svci')
+        return self
+
 
 class OCSNBucketInstanceMapping(OCSNEntity):
     def __init__(self):
         self.bis = None # bucket instances
 
+
+    def insert(self, entry_id, bi):
+        if not self.bis:
+            self.bis = {}
+
+        self.bis[entry_id] = OCSNBucketInstanceID(bi.svci, bi.id)
+
+    def remove(self, entry_id):
+        if not self.bis:
+            return
+
+        try:
+            self.bis.pop(entry_id)
+        except:
+            pass
+
     def encode(self):
-        return {'id': self.id,
-                'bis': self.bis }
+        d = {}
+        for k, v in self.bis.items():
+            d[k] = v.encode()
+
+        return { 'bis': d }
 
     def decode(self, d):
         if not d:
             return None
 
         self.id = d.get('id')
-        self.bis = decode_list(d.get('bis'), OCSNBucketInstance)
+        self.bis = decode_dict(d.get('bis'), OCSNBucketInstanceID())
         # self.data_policy = OCSNDataPolicy().decode(d.get('data_policy'))
         return self
 
@@ -232,10 +276,22 @@ class OCSNVBucket(OCSNEntity):
     def get_key(self):
         return self.get_prefix() + self.id
 
+    def map(self, entry_id, bi):
+        if not self.mappings:
+            self.mappings = OCSNBucketInstanceMapping()
+
+        self.mappings.insert(entry_id, bi)
+    
+    def unmap(self, entry_id):
+        if not self.mappings:
+            return
+
+        self.mappings.remove(entry_id)
+
     def encode(self):
         return {'id': self.id,
                 'name': self.name,
-                'mappings': self.mappings}
+                'mappings': self.mappings.encode() }
 
     def decode(self, d):
         self.id = d.get('id')

@@ -7,6 +7,7 @@ from ocsn.ocsn_err import *
 from ocsn.service import *
 from ocsn.tenant import *
 from ocsn.redis_client import *
+from ocsn.ocsn_types import *
 
 import json
 
@@ -575,6 +576,7 @@ The subcommands are:
    modify                        Modify a vbucket
    info                          Show vbucket info
    remove                        Remove a vbucket 
+   map                           Map bucket instance into a vbucket
 ''')
         parser.add_argument('subcommand', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -675,13 +677,43 @@ The subcommands are:
         parser.add_argument('--vbucket-id', required = True)
         parser.add_argument('--svci-id', required = True)
         parser.add_argument('--bi-id', required = True)
+        parser.add_argument('--entry-id')
 
         args = parser.parse_args(sys.argv[3:])
 
-        u = OCSNVBucket(args.tenant_id, args.user_id, id = args.vbucket_id)
-        u.load(redis_client)
+        vb = OCSNVBucket(args.tenant_id, args.user_id, id = args.vbucket_id)
+        vb.load(redis_client)
 
-        print(dump_json(u.encode()))
+        id = args.entry_id or gen_id('bi')
+
+        bi = OCSNBucketInstance(args.svci_id, id = args.bi_id)
+        bi.load(redis_client)
+
+        vb.map(id, bi)
+        vb.store(redis_client)
+
+        print(dump_json(vb.encode()))
+
+    def unmap(self):
+
+        parser = argparse.ArgumentParser(
+            description='Unmap bucket instance from a vbucket',
+            usage='ocsn vbucket unmap')
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id', required = True)
+        parser.add_argument('--vbucket-id', required = True)
+        parser.add_argument('--entry-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        vb = OCSNVBucket(args.tenant_id, args.user_id, id = args.vbucket_id)
+        vb.load(redis_client)
+
+        vb.unmap(args.entry_id)
+        vb.store(redis_client)
+
+        print(dump_json(vb.encode()))
 
 
 class OCSNCommand:
@@ -726,6 +758,8 @@ The commands are:
    vbucket modify       Modify a vbucket
    vbucket info         Show vbucket info
    vbucket remove       Remove a vbucket
+   vbucket map          Map bucket instance into a vbucket
+   vbucket unmap        Unmap bucket instance from a vbucket
 ''')
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
