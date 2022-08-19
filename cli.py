@@ -121,6 +121,7 @@ The subcommands are:
    list                          List service instances
    create                        Create a new service instance
    modify                        Modify an existing service instancce
+   info                          Show service instance info
    remove                        Remove a service instance
 ''')
         parser.add_argument('subcommand', help='Subcommand to run')
@@ -178,6 +179,21 @@ The subcommands are:
 
     def modify(self):
         self._do_store(True, 'Modify a service instance', 'ocsn svci modify')
+
+    def info(self):
+
+        parser = argparse.ArgumentParser(
+            description='Show service instance info',
+            usage='ocsn svci info')
+
+        parser.add_argument('--svci-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        svci = OCSNServiceInstance(id = args.svci_id)
+        svci.load(redis_client)
+
+        print(dump_json(svci.encode()))
 
     def remove(self):
 
@@ -348,6 +364,22 @@ The subcommands are:
     def modify(self):
         self._do_store(True, 'Modify a bucket instance', 'ocsn bi modify')
 
+    def info(self):
+
+        parser = argparse.ArgumentParser(
+            description='Show bucket instance info',
+            usage='ocsn bi info')
+
+        parser.add_argument('--svci-id', required = True)
+        parser.add_argument('--bi-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        bi = OCSNBucketInstance(args.svci_id, id = args.bi_id)
+        bi.load(redis_client)
+
+        print(dump_json(bi.encode()))
+
     def remove(self):
 
         parser = argparse.ArgumentParser(
@@ -359,7 +391,7 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        bi = OCSNS3Creds(args.svci, id = args.bi_id)
+        bi = OCSNS3Creds(args.svci_id, id = args.bi_id)
         bi.remove(redis_client)
 
 
@@ -632,6 +664,25 @@ The subcommands are:
         u.remove(redis_client)
 
 
+    def map(self):
+
+        parser = argparse.ArgumentParser(
+            description='Map bucket instance into a vbucket',
+            usage='ocsn vbucket map')
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id', required = True)
+        parser.add_argument('--vbucket-id', required = True)
+        parser.add_argument('--svci-id', required = True)
+        parser.add_argument('--bi-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        u = OCSNVBucket(args.tenant_id, args.user_id, id = args.vbucket_id)
+        u.load(redis_client)
+
+        print(dump_json(u.encode()))
+
 
 class OCSNCommand:
 
@@ -651,6 +702,7 @@ The commands are:
    svci list            List service instances
    svci create          Create a service instance
    svci modify          Modify existing service instance
+   svci info            Show service instance info
    svci remove          Remove a service instance
    creds list           List credentials
    creds create         Create credentials
@@ -659,6 +711,7 @@ The commands are:
    bi list              List buckets
    bi create            Create a bucket instance
    bi modify            Modify a bucket instance
+   bi info              Show bucket instance info
    bi remove            Remove a bucket instance
    tenant list          List tenants
    tenant create        Create tenant
