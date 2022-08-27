@@ -23,7 +23,7 @@ def decode_dict(d, T):
 
     result = {}
     for k, v in d.items():
-        result[k] = T.decode(v)
+        result[k] = T._decode(None, v)
 
     return result
 
@@ -212,10 +212,15 @@ class OCSNBucketInstanceID(OCSNEntity):
                 'svci': self.svci_id,
                 }
 
+    def _decode(obj, d):
+        if not obj:
+            obj = OCSNBucketInstanceID()
+        obj.bi_id = d.get('bi')
+        obj.svci_id = d.get('svci')
+        return obj
+
     def decode(self, d):
-        self.bi_id = d.get('bi')
-        self.svci_id = d.get('svci')
-        return self
+        return __class__._decode(self, d)
 
 
 class OCSNBucketInstanceMapping(OCSNEntity):
@@ -250,7 +255,7 @@ class OCSNBucketInstanceMapping(OCSNEntity):
             return None
 
         self.id = d.get('id')
-        self.bis = decode_dict(d.get('bis'), OCSNBucketInstanceID())
+        self.bis = decode_dict(d.get('bis'), OCSNBucketInstanceID)
         # self.data_policy = OCSNDataPolicy().decode(d.get('data_policy'))
         return self
 
@@ -289,9 +294,12 @@ class OCSNVBucket(OCSNEntity):
         self.mappings.remove(entry_id)
 
     def encode(self):
+        mappings = self.mappings
+        if mappings:
+            mappings = self.mappings.encode()
         return {'id': self.id,
                 'name': self.name,
-                'mappings': self.mappings.encode() }
+                'mappings': mappings }
 
     def decode(self, d):
         self.id = d.get('id')
@@ -299,22 +307,44 @@ class OCSNVBucket(OCSNEntity):
         self.mappings = OCSNBucketInstanceMapping().decode(d.get('mappings'))
         return self
 
+class OCSNTenantPolicy(OCSNEntity):
+    def __init__(self):
+        self.svc_id = None
+
+    def decode(self, d):
+        if not d:
+            return OCSNTenantPolicy()
+
+        self.svc_id = d.get('svc_id')
+        return self
+
+    def encode(self):
+        return {'svc_id': self.svc_id, }
+
+    def check(self, svc_id):
+        if not self.svc_id:
+            return True
+
+        return (self.svc_id == svc_id)
 
 class OCSNTenant(OCSNEntity):
 
-    def __init__(self, id = None, name = None, users = None, vbuckets = None):
+    def __init__(self, id = None, name = None, users = None, vbuckets = None, policy = None):
         self.id = id
         self.name = name
         self.users = users
         self.vbuckets = vbuckets
+        self.policy = policy
 
-    def apply(self, name = None, users = None, vbuckets = None):
+    def apply(self, name = None, users = None, vbuckets = None, policy = None):
         if name:
             self.name = name
         if users:
             self.users = users
         if vbuckets:
             self.vbuckets = vbuckets
+        if policy:
+            self.policy = policy
 
     def get_prefix():
         return 't/'
@@ -327,6 +357,7 @@ class OCSNTenant(OCSNEntity):
         self.name = d.get('name')
         self.users = decode_list(d.get('users'), OCSNUser)
         self.vbuckets = decode_list(d.get('vbuckets'), OCSNVBucket)
+        self.policy = OCSNTenantPolicy().decode(d.get('policy'))
         return self
 
     def encode(self):
@@ -334,7 +365,11 @@ class OCSNTenant(OCSNEntity):
                 'name': self.name,
                 'users': self.users,
                 'vbuckets': self.vbuckets,
+                'policy': self.policy.encode(),
                 }
+
+    def check_policy(self, svc_id):
+        return self.policy.check(svc_id)
 
 
 class OCSNService(OCSNEntity):

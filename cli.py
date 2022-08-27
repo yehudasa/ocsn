@@ -87,11 +87,28 @@ The subcommands are:
         svc.apply(name = args.name, region = args.region, endpoint = args.endpoint)
         svc.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
+        print(dump_json(svc.encode()))
+
     def create(self):
         self._do_store(False, 'Create a service', 'ocsn svc create')
 
     def modify(self):
         self._do_store(True, 'Modify a service', 'ocsn svc modify')
+
+    def info(self):
+
+        parser = argparse.ArgumentParser(
+            description='Show service instance info',
+            usage='ocsn svci info')
+
+        parser.add_argument('--svc-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        svc = OCSNService(id = args.svc_id)
+        svc.load(redis_client)
+
+        print(dump_json(svc.encode()))
 
     def remove(self):
 
@@ -174,6 +191,8 @@ The subcommands are:
 
         svci.apply(name = args.name, svc_id = args.svc_id, buckets = buckets, creds = creds)
         svci.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
+
+        print(dump_json(svci.encode()))
 
     def create(self):
         self._do_store(False, 'Create a service instance', 'ocsn svci create')
@@ -274,6 +293,8 @@ The subcommands are:
         creds.apply(access_key = args.access_key, secret = args.secret)
         creds.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
+        print(dump_json(creds.encode()))
+
     def create(self):
         self._do_store(False, 'Create credentials', 'ocsn creds create')
 
@@ -358,6 +379,8 @@ The subcommands are:
 
         bi.apply(bucket = args.bucket, obj_prefix = args.obj_prefix, creds_id = args.creds_id)
         bi.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
+
+        print(dump_json(bi.encode()))
 
     def create(self):
         self._do_store(False, 'Create a bucket instance', 'ocsn bi create')
@@ -444,17 +467,24 @@ The subcommands are:
 
         parser.add_argument('--tenant-id', required = id_required)
         parser.add_argument('--name')
+        parser.add_argument('--policy')
 
         args = parser.parse_args(sys.argv[3:])
 
         id = args.tenant_id or gen_id('tenant')
 
+        policy = None
+        if args.policy:
+            policy = OCSNTenantPolicy().decode(json.loads(args.policy))
+
         tenant = OCSNTenant(id = id, name = args.name)
         if only_modify:
             tenant.load(redis_client)
 
-        tenant.apply(name = args.name)
+        tenant.apply(name = args.name, policy = policy)
         tenant.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
+
+        print(dump_json(tenant.encode()))
 
     def create(self):
         self._do_store(False, 'Create a tenant', 'ocsn tenant create')
@@ -539,6 +569,8 @@ The subcommands are:
         u.apply(name = args.name)
         u.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
 
+        print(dump_json(u.encode()))
+
     def create(self):
         self._do_store(False, 'Create user', 'ocsn user create')
 
@@ -568,7 +600,7 @@ class VBucketCommand:
     def parse(self):
         parser = argparse.ArgumentParser(
             description='OCSN control tool',
-            usage='''ocsn user <subcommand> [...]
+            usage='''ocsn vbucket <subcommand> [...]
 
 The subcommands are:
    list                          List vbuckets of a specific user
@@ -577,6 +609,7 @@ The subcommands are:
    info                          Show vbucket info
    remove                        Remove a vbucket 
    map                           Map bucket instance into a vbucket
+   coninfo                       Get info needed to create a connection
 ''')
         parser.add_argument('subcommand', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -626,6 +659,8 @@ The subcommands are:
 
         u.apply(name = args.name)
         u.store(redis_client, exclusive = not only_modify, only_modify = only_modify)
+
+        print(dump_json(u.encode()))
 
     def create(self):
         self._do_store(False, 'Create a vbucket', 'ocsn vbucket create')
@@ -715,6 +750,59 @@ The subcommands are:
 
         print(dump_json(vb.encode()))
 
+    def coninfo(self):
+
+        parser = argparse.ArgumentParser(
+            description='Get info needed to create a connection',
+            usage='ocsn vbucket coninfo')
+
+        parser.add_argument('--tenant-id', required = True)
+        parser.add_argument('--user-id', required = True)
+        parser.add_argument('--vbucket-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        tenant = OCSNTenant(args.tenant_id)
+        tenant.load(redis_client)
+
+        vb = OCSNVBucket(args.tenant_id, args.user_id, id = args.vbucket_id)
+        vb.load(redis_client)
+
+        result = []
+
+        for _, bid in vb.mappings.bis.items():
+            d = {}
+
+            svci = OCSNServiceInstance(id = bid.svci_id)
+            svci.load(redis_client)
+
+            if not tenant.check_policy(svci.svc_id):
+                continue
+
+            svc = OCSNService(id = svci.svc_id)
+            svc.load(redis_client)
+
+            bi = OCSNBucketInstance(bid.svci_id, id = bid.bi_id)
+            bi.load(redis_client)
+
+            creds = OCSNS3Creds(svci.id, bi.creds_id)
+            creds.load(redis_client)
+
+            conn = {
+                     'endpoint': svc.endpoint,
+                     'creds': {
+                         'access_key': creds.access_key,
+                         'secret': creds.secret,
+                      },
+                   }
+            d['connection'] = conn
+            d['bucket'] = bi.bucket
+            d['obj_prefix'] = bi.obj_prefix
+
+            result.append(d)
+
+        if len(result) > 0:
+            print(dump_json(result))
 
 class OCSNCommand:
 
@@ -760,6 +848,7 @@ The commands are:
    vbucket remove       Remove a vbucket
    vbucket map          Map bucket instance into a vbucket
    vbucket unmap        Unmap bucket instance from a vbucket
+   vbucket coninfo      Get info needed to create a connection
 ''')
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
