@@ -1,11 +1,22 @@
 from abc import abstractmethod
 
+import random
+import string
+import copy
+import itertools
+
 from flask import json
 from flask.json import JSONEncoder
 
 
 
+def safestr(s):
+    if not s:
+        return ''
+    return s
 
+def safecmp(s1, s2):
+    return (s1 or '') == (s2 or '')
 
 def decode_list(d, T):
     if d is None:
@@ -274,9 +285,17 @@ class OCSNVBucket(OCSNEntity):
             self.name = name
         if mappings:
             self.mappings = mappings
+
+    def get_prefix_opt(self):
+        prefix = 'b/'
+        if self.tenant_id:
+            prefix += self.tenant_id + '/'
+            if self.user_id:
+                prefix += self.user_id + '/'
+        return prefix
    
     def get_prefix(self):
-        return 'b/' + self.tenant_id + '/' + self.user_id
+        return 'b/' + self.tenant_id + '/' + self.user_id + '/'
 
     def get_key(self):
         return self.get_prefix() + self.id
@@ -449,40 +468,63 @@ class OCSNServiceInstance(OCSNEntity):
                 }
 
 class OCSNDataFlowEntity(OCSNEntity):
-    def __init__(self, id = None, svc = None, bucket = None):
-        self.id = id
-        self.svc = svc
+    def __init__(self, svc_id = None, bucket = None, obj_prefix = None):
+        self.svc_id = svc_id
         self.bucket = bucket
+        self.obj_prefix = obj_prefix
 
     def decode(self, d):
-        self.id = d.get('id')
-        self.svc = d.get('svc')
+        self.svc_id = d.get('svc_id')
         self.bucket = d.get('bucket')
+        self.obj_prefix = d.get('obj_prefix')
         return self
 
     def encode(self):
-        return {'id': self.id,
-                'svc': self.source,
-                'bucket': self.dest,
+        return {'svc_id': self.svc_id,
+                'bucket': self.bucket,
+                'obj_prefix': self.obj_prefix,
                 }
 
+    def apply(self, entity):
+        new_entity = OCSNDataFlowEntity(self.svc_id, self.bucket, self.obj_prefix)
+
+        if not self.bucket:
+            new_entity.bucket = entity.bucket
+        else:
+            new_entity.bucket.replace('*', entity.bucket)
+
+        return new_entity
+
+    def compare(self, entity):
+        return safecmp(self.svc_id, entity.svc_id) and safecmp(self.bucket, entity.bucket) and safecmp(self.obj_prefix, entity.obj_prefix)
+
+
+
 class OCSNDirectionalFlow(OCSNEntity):
-    def __init__(self, id = None, source = None, dest = None):
-        self.id = id
+    def __init__(self, source = None, dest = None):
         self.source = source
         self.dest = dest
 
+    def _decode(obj, d):
+        if not obj:
+            obj = OCSNDirectionalFlow()
+        obj.source = OCSNDataFlowEntity().decode(d.get('source'))
+        obj.dest = OCSNDataFlowEntity().decode(d.get('dest'))
+        return obj
+
     def decode(self, d):
-        self.id = d.get('id')
-        self.source = d.get('source')
-        self.dest = d.get('dest')
-        return self
+        return OCSNDirectionalFlow._decode(self, d)
 
     def encode(self):
-        return {'id': self.id,
-                'source': self.source,
-                'dest': self.dest,
+        return {'source': self.source.encode(),
+                'dest': self.dest.encode(),
                 }
+
+    def check(self, source, dest):
+        s = self.source.apply(source)
+        d = self.dest.apply(source) # use the source bucket in case of wildcard
+        ret = s.compare(source) and d.compare(dest)
+        return ret
 
 
 class OCSNSymmetricFlow(OCSNEntity):
@@ -534,4 +576,54 @@ class OCSNDataFlowPolicy(OCSNEntity):
 
 
 class OCSNDataFlowInstance(OCSNEntity):
-    pass
+    def __init__(self, id = None):
+        self.id = id
+        self.flows = None
+
+    def apply(self, flows = None):
+        if flows:
+            self.flows = flows
+
+    def get_prefix():
+        return 'dataflow/'
+
+    def get_key(self):
+        return __class__.get_prefix() + self.id
+
+    def decode(self, d):
+        self.id = d.get('id')
+        self.flows = decode_dict(d.get('flows'), OCSNDirectionalFlow)
+        return self
+
+    def encode(self):
+        d = {}
+        for k, v in self.flows.items():
+            d[k] = v.encode()
+
+        return {'id': self.id,
+                'flows': d,
+                }
+
+    def append(self, flow, flow_id = None):
+        if not flow_id:
+            flow_id = self.id + '/' + ''.join(random.choices(string.ascii_lowercase, k=5))
+
+        if not self.flows:
+            self.flows = {}
+
+        self.flows[flow_id] = flow
+
+    def pop(self, flow_id):
+        try:
+            self.flows.pop(flow_id)
+        except:
+            pass
+
+        return bool(self.flows)
+
+    def check(self, source, dest):
+        for _, f in self.flows.items():
+            if f.check(source, dest):
+                return True
+        return False
+

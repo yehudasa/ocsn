@@ -6,6 +6,7 @@ import string
 from ocsn.ocsn_err import *
 from ocsn.service import *
 from ocsn.tenant import *
+from ocsn.dataflow import *
 from ocsn.redis_client import *
 from ocsn.ocsn_types import *
 
@@ -804,6 +805,195 @@ The subcommands are:
         if len(result) > 0:
             print(dump_json(result))
 
+class FlowCommand:
+    def __init__(self, env, args):
+        self.env = env
+        self.args = args
+
+    def parse(self):
+        parser = argparse.ArgumentParser(
+            description='OCSN control tool',
+            usage='''ocsn flow <subcommand> [...]
+
+The subcommands are:
+   list                          List data flows
+   create                        Declare a new data flow
+   modify                        Modify a data flow
+   info                          Show data flow info
+   remove                        Remove data flow
+''')
+        parser.add_argument('subcommand', help='Subcommand to run')
+        # parse_args defaults to [1:] for args, but you need to
+        # exclude the rest of the args too, or validation will fail
+        args = parser.parse_args(self.args[0:1])
+        if not hasattr(self, args.subcommand):
+            print('Unrecognized subcommand:', args.subcommand)
+            parser.print_help()
+            exit(1)
+        # use dispatch pattern to invoke method with same name
+        return getattr(self, args.subcommand)
+
+    def list(self):
+        parser = argparse.ArgumentParser(
+            description='List users in a tenant',
+            usage='ocsn user list')
+
+        # parser.add_argument('--tenant-id', required = True)
+        # parser.add_argument('--user-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        df = OCSNDataFlowInstanceCtl(redis_client)
+
+        result = ([ e.encode() for e in df.list() ])
+
+        print(dump_json(result))
+
+    def _do_store(self, only_modify, desc, usage):
+
+        parser = argparse.ArgumentParser(
+            description=desc,
+            usage=usage)
+
+        parser.add_argument('--group-id', required = only_modify)
+        parser.add_argument('--flow-id')
+        parser.add_argument('--source-svc-id', required = True)
+        parser.add_argument('--source-bucket')
+        parser.add_argument('--source-obj-prefix')
+        parser.add_argument('--dest-svc-id', required = True)
+        parser.add_argument('--dest-bucket')
+        parser.add_argument('--dest-obj-prefix')
+
+        args = parser.parse_args(sys.argv[3:])
+
+        src = OCSNDataFlowEntity(args.source_svc_id, args.source_bucket, args.source_obj_prefix)
+        dest = OCSNDataFlowEntity(args.dest_svc_id, args.dest_bucket, args.dest_obj_prefix)
+
+        flow = OCSNDirectionalFlow(src, dest)
+
+        id = args.group_id or gen_id('flowgroup')
+
+        df = OCSNDataFlowInstance(id)
+        df.load(redis_client)
+
+        df.append(flow, flow_id = args.flow_id)
+        df.store(redis_client)
+
+        print(dump_json(df.encode()))
+
+    def create(self):
+        self._do_store(False, 'Declare a new data flow', 'ocsn flow create')
+
+    def modify(self):
+        self._do_store(True, 'Modify a data flow', 'ocsn flow modify')
+
+    def info(self):
+
+        parser = argparse.ArgumentParser(
+            description='Show flow info',
+            usage='ocsn flow info')
+
+        parser.add_argument('--group-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        df = OCSNDataFlowInstance(id = args.group_id)
+        df.load(redis_client)
+
+        print(dump_json(df.encode()))
+
+    def remove(self):
+
+        parser = argparse.ArgumentParser(
+            description='Remove a flow',
+            usage='ocsn flow remove')
+
+        parser.add_argument('--group-id', required = True)
+        parser.add_argument('--flow-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        df = OCSNDataFlowInstance(id = args.group_id)
+        df.load(redis_client)
+
+        if df.pop(args.flow_id):
+            df.store(redis_client)
+        else:
+            df.remove(redis_client)
+
+    def verify(self):
+
+        parser = argparse.ArgumentParser(
+            description='Verify flows match vbucket requirements',
+            usage='ocsn flow verify')
+
+        # parser.add_argument('--group-id', required = True)
+        # parser.add_argument('--flow-id', required = True)
+
+        parser.add_argument('--tenant-id')
+        parser.add_argument('--user-id')
+
+        args = parser.parse_args(sys.argv[3:])
+
+        uvb = OCSNVBucketCtl(redis_client, args.tenant_id, args.user_id)
+
+        for b in uvb.list_opt():
+            if not b.mappings:
+                continue
+
+            needed = []
+            for _, bid in b.mappings.bis.items():
+                bi = OCSNBucketInstance(bid.svci_id, id = bid.bi_id)
+                bi.load(redis_client)
+
+                svci = OCSNServiceInstance(id = bid.svci_id)
+                svci.load(redis_client)
+
+                if not svci.svc_id:
+                    continue
+
+                svc = OCSNService(id = svci.svc_id)
+                svc.load(redis_client)
+
+                item = OCSNDataFlowEntity(svci.svc_id, bi.bucket, bi.obj_prefix)
+
+                needed.append(item)
+
+            if len(needed) < 2:
+                continue
+
+            missing = []
+
+            for subset in itertools.combinations(needed, 2):
+                missing.append([subset[0], subset[1]])
+                missing.append([subset[1], subset[0]])
+
+            exists = []
+
+            df = OCSNDataFlowInstanceCtl(redis_client)
+            for f in df.list():
+                new_missing = []
+
+                for pair in missing:
+                    if f.check(pair[0], pair[1]):
+                        exists.append(pair)
+                    else:
+                        new_missing.append(pair)
+
+                missing = new_missing
+
+            df = OCSNDataFlowInstanceCtl(redis_client)
+
+            print('Existing flows:' + dump_json([ [ s.encode(), d.encode() ] for s,d in exists ]))
+            print('Missing flows:' + dump_json([ [ s.encode(), d.encode() ] for s,d in missing ]))
+
+            # result = ([ e.encode() for e in df.list() ])
+
+
+        #result = ([ e.encode() for e in uvb.list_opt() ])
+        #print(dump_json(result))
+
+
 class OCSNCommand:
 
     def __init__(self):
@@ -849,6 +1039,11 @@ The commands are:
    vbucket map          Map bucket instance into a vbucket
    vbucket unmap        Unmap bucket instance from a vbucket
    vbucket coninfo      Get info needed to create a connection
+   flow list            List data flows
+   flow create          Declare a new data flow
+   flow modify          Modify a data flow
+   flow info            Show data flow info
+   flow remove          Remove data flow
 ''')
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -888,6 +1083,10 @@ The commands are:
 
     def vbucket(self):
         cmd = VBucketCommand(self.env, sys.argv[2:]).parse()
+        cmd()
+
+    def flow(self):
+        cmd = FlowCommand(self.env, sys.argv[2:]).parse()
         cmd()
 
 def main():

@@ -34,3 +34,9 @@ class OCSNVBucketCtl:
         for item in self.client.list(prefix):
             yield vb.decode_json(item)
 
+    def list_opt(self):
+        vb = OCSNVBucket(self.tenant_id, self.user_id)
+        prefix = vb.get_prefix_opt()
+        for item in self.client.list(prefix):
+            yield vb.decode_json(item)
+
