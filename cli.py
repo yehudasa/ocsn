@@ -609,6 +609,14 @@ The subcommands are:
         u.remove(redis_client)
 
 
+class OCSNBucketInstanceMappingAlt(OCSNEntity):
+    def __init__(self, bis):
+        self.bis = bis
+
+    def encode(self):
+        return {'bis': [ x for x in self.bis] }
+
+
 class VBucketCommand:
     def __init__(self, env, args):
         self.env = env
@@ -697,10 +705,33 @@ The subcommands are:
 
         args = parser.parse_args(sys.argv[3:])
 
-        u = OCSNVBucket(args.tenant_id, args.user_id, id = args.vbucket_id)
-        u.load(redis_client)
+        vb = OCSNVBucket(args.tenant_id, args.user_id, id = args.vbucket_id)
+        vb.load(redis_client)
 
-        print(dump_json(u.encode()))
+        new_bis = []
+        for k, item in vb.mappings.bis.items():
+            bi = OCSNBucketInstance(item.svci_id, id = item.bi_id)
+            bi.load(redis_client)
+
+            svci = OCSNServiceInstance(id = item.svci_id)
+            svci.load(redis_client)
+
+            svc = OCSNService(id = svci.svc_id)
+            svc.load(redis_client)
+
+            new_bi = {'endpoint': svc.endpoint,
+                      'svc_name': svc.name,
+                      'svci_name': svci.name,
+                      'bucket': bi.bucket,
+                      'obj_prefix': bi.obj_prefix,
+                      'creds_id': bi.creds_id }
+
+            new_bis.append(new_bi)
+
+
+        vb.mappings = OCSNBucketInstanceMappingAlt(new_bis)
+
+        print(dump_json(vb.encode()))
 
     def remove(self):
 
