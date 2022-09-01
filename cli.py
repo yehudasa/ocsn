@@ -434,6 +434,7 @@ The subcommands are:
    list                          List tenants
    create                        Create a new tenant
    modify                        Modify an existing tenant
+   info                          Show tenant info
    remove                        Remove a tenant
 ''')
         parser.add_argument('subcommand', help='Subcommand to run')
@@ -492,6 +493,21 @@ The subcommands are:
 
     def modify(self):
         self._do_store(True, 'Modify a tenant', 'ocsn tenant modify')
+
+    def info(self):
+
+        parser = argparse.ArgumentParser(
+            description='Show tenant info',
+            usage='ocsn tenant info')
+
+        parser.add_argument('--tenant-id', required = True)
+
+        args = parser.parse_args(sys.argv[3:])
+
+        tenant = OCSNTenant(args.tenant_id)
+        tenant.load(redis_client)
+
+        print(dump_json(tenant.encode()))
 
     def remove(self):
 
@@ -1026,6 +1042,7 @@ The commands are:
    tenant list          List tenants
    tenant create        Create tenant
    tenant modify        Modify tenant
+   tenant info          Show tenant info
    tenant remove        Remove tenant
    user list            List users
    user create          Create a user

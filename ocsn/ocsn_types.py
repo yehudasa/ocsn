@@ -380,11 +380,14 @@ class OCSNTenant(OCSNEntity):
         return self
 
     def encode(self):
+        p = self.policy
+        if p:
+            p = p.encode()
         return {'id': self.id,
                 'name': self.name,
                 'users': self.users,
                 'vbuckets': self.vbuckets,
-                'policy': self.policy.encode(),
+                'policy': p,
                 }
 
     def check_policy(self, svc_id):
@@ -488,10 +491,11 @@ class OCSNDataFlowEntity(OCSNEntity):
     def apply(self, entity):
         new_entity = OCSNDataFlowEntity(self.svc_id, self.bucket, self.obj_prefix)
 
-        if not self.bucket:
-            new_entity.bucket = entity.bucket
-        else:
-            new_entity.bucket.replace('*', entity.bucket)
+        if self.bucket:
+            new_entity.bucket = self.bucket.replace('*', entity.bucket)
+
+        if self.obj_prefix:
+            new_entity.obj_prefix = self.obj_prefix.replace('*', entity.bucket)
 
         return new_entity
 
@@ -523,8 +527,7 @@ class OCSNDirectionalFlow(OCSNEntity):
     def check(self, source, dest):
         s = self.source.apply(source)
         d = self.dest.apply(source) # use the source bucket in case of wildcard
-        ret = s.compare(source) and d.compare(dest)
-        return ret
+        return s.compare(source) and d.compare(dest)
 
 
 class OCSNSymmetricFlow(OCSNEntity):
