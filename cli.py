@@ -852,6 +852,21 @@ The subcommands are:
         if len(result) > 0:
             print(dump_json(result))
 
+class OCSNDataFlowEntityAlt(OCSNEntity):
+    def __init__(self, flow, svc_cache):
+        self.svc_id = flow.svc_id
+        self.bucket = flow.bucket
+        self.obj_prefix = flow.obj_prefix
+        self.endpoint = svc_cache[self.svc_id].endpoint
+
+
+    def encode(self):
+        return {'svc_id': self.svc_id,
+                'endpoint': self.endpoint,
+                'bucket': self.bucket,
+                'obj_prefix': self.obj_prefix,
+                }
+
 class FlowCommand:
     def __init__(self, env, args):
         self.env = env
@@ -984,6 +999,8 @@ The subcommands are:
 
         uvb = OCSNVBucketCtl(redis_client, args.tenant_id, args.user_id)
 
+        svc_cache = {}
+
         for b in uvb.list_opt():
             if not b.mappings:
                 continue
@@ -999,8 +1016,12 @@ The subcommands are:
                 if not svci.svc_id:
                     continue
 
-                svc = OCSNService(id = svci.svc_id)
-                svc.load(redis_client)
+                try:
+                    svc = svc_cache[svci.svc_id]
+                except:
+                    svc = OCSNService(id = svci.svc_id)
+                    svc.load(redis_client)
+                    svc_cache[svci.svc_id] = svc
 
                 item = OCSNDataFlowEntity(svci.svc_id, bi.bucket, bi.obj_prefix)
 
@@ -1022,10 +1043,13 @@ The subcommands are:
                 new_missing = []
 
                 for pair in missing:
+                    new_s = OCSNDataFlowEntityAlt(pair[0], svc_cache)
+                    new_d = OCSNDataFlowEntityAlt(pair[1], svc_cache)
+                    new_pair = [new_s, new_d]
                     if f.check(pair[0], pair[1]):
-                        exists.append(pair)
+                        exists.append(new_pair)
                     else:
-                        new_missing.append(pair)
+                        new_missing.append(new_pair)
 
                 missing = new_missing
 
